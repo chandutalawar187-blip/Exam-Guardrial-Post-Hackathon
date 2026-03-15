@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExamGuardrail — Proctored Examination</title>
+  <meta name="exam-session-id" content="">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #0a0f1e;
+      --surface: #111827;
+      --card: #1a2233;
+      --border: #2a3548;
+      --text: #e8edf5;
+      --muted: #7a8ba8;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.15);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.12);
+      --success: #22c55e;
+      --success-glow: rgba(34, 197, 94, 0.12);
+      --warn: #f59e0b;
+      --warn-glow: rgba(245, 158, 11, 0.12);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── SENTINEL OVERLAY (blocks everything when inactive) ── */
+    #sentinel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 100000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      backdrop-filter: blur(12px);
+      transition: opacity 0.4s;
+    }
+    #sentinel-overlay.hidden { opacity: 0; pointer-events: none; }
+    .overlay-icon { font-size: 56px; }
+    .overlay-title { font-size: 1.6rem; font-weight: 800; color: var(--danger); letter-spacing: -0.02em; }
+    .overlay-msg { color: var(--muted); font-size: 0.95rem; text-align: center; max-width: 420px; }
+    .btn-activate {
+      padding: 14px 40px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+      margin-top: 10px;
+    }
+    .btn-activate:hover { transform: scale(1.03); box-shadow: 0 0 40px rgba(59, 130, 246, 0.5); }
+
+    /* ── HEADER BAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar h1 { font-size: 0.95rem; font-weight: 700; }
+    .sentinel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .badge-active { background: var(--success-glow); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-inactive { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .topbar-right { display: flex; align-items: center; gap: 16px; font-size: 0.8rem; }
+    .stat-chip {
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .chip-violations { color: var(--danger); }
+    .chip-score { color: var(--success); }
+
+    /* ── MAIN LAYOUT ── */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 28px 20px;
+    }
+
+    /* ── EXAM INFO CARD ── */
+    .exam-info {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .exam-info h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .exam-meta { font-size: 0.8rem; color: var(--muted); }
+    .timer {
+      font-size: 1.4rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary);
+    }
+
+    /* ── QUESTION CARD ── */
+    .question-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    .question-card.answered { border-color: rgba(34,197,94,0.3); }
+    .q-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .q-number {
+      background: var(--primary-glow);
+      color: var(--primary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .q-marks { font-size: 0.75rem; color: var(--muted); }
+    .q-text { font-size: 0.95rem; font-weight: 500; margin-bottom: 16px; line-height: 1.6; }
+
+    .options { display: flex; flex-direction: column; gap: 8px; }
+    .option-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+      font-family: inherit;
+      width: 100%;
+    }
+    .option-btn:hover { border-color: var(--primary); background: var(--primary-glow); }
+    .option-btn.selected {
+      border-color: var(--primary);
+      background: var(--primary-glow);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .option-btn.correct { border-color: var(--success); background: var(--success-glow); }
+    .option-btn.wrong { border-color: var(--danger); background: var(--danger-glow); }
+    .opt-letter {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .option-btn.selected .opt-letter { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* ── SUBMIT AREA ── */
+    .submit-area {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .btn-submit {
+      padding: 14px 48px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(34,197,94,0.3);
+      font-family: inherit;
+    }
+    .btn-submit:hover { transform: scale(1.03); }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── REPORT OVERLAY ── */
+    #report-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 200000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #report-overlay.visible { display: flex; }
+    .report-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      max-width: 580px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .report-card h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+    .report-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .report-row:last-child { border-bottom: none; }
+    .report-label { color: var(--muted); }
+    .report-value { font-weight: 700; }
+    .report-value.green { color: var(--success); }
+    .report-value.red { color: var(--danger); }
+    .report-value.orange { color: var(--warn); }
+
+    .report-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .violation-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 0.82rem;
+    }
+    .violation-entry .v-type { color: var(--text); font-weight: 500; }
+    .violation-entry .v-time { color: var(--muted); font-size: 0.75rem; }
+
+    .ai-status {
+      margin-top: 16px;
+      padding: 12px;
+      background: var(--warn-glow);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .btn-close-report {
+      display: block;
+      margin: 24px auto 0;
+      padding: 10px 32px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+    }
+    .btn-close-report:hover { background: var(--border); }
+
+    /* ── WARNING MODAL ── */
+    #warning-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 150000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #warning-modal.visible { display: flex; }
+    .warning-card {
+      background: var(--surface);
+      border: 2px solid var(--danger);
+      border-radius: 14px;
+      padding: 32px;
+      max-width: 460px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(239,68,68,0.3);
+    }
+    .warning-card .w-icon { font-size: 48px; margin-bottom: 12px; }
+    .warning-card h3 { color: var(--danger); font-size: 1.2rem; margin-bottom: 12px; }
+    .warning-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px; }
+    .btn-acknowledge {
+      padding: 10px 32px;
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* ── VIOLATION LOG SIDEBAR ── */
+    .violation-log-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .vl-title {
+      font-size: 0.75rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px;
+    }
+    .vl-empty { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 12px; }
+    .vl-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(42,53,72,0.5);
+      font-size: 0.8rem;
+    }
+    .vl-item:last-child { border-bottom: none; }
+    .vl-sev {
+      padding: 2px 6px; border-radius: 3px; font-size: 0.65rem;
+      font-weight: 800; letter-spacing: 0.04em; flex-shrink: 0;
+    }
+    .vl-sev-HIGH, .vl-sev-CRITICAL { background: rgba(239,68,68,0.15); color: var(--danger); }
+    .vl-sev-MEDIUM { background: var(--warn-glow); color: var(--warn); }
+    .vl-sev-LOW { background: rgba(100,116,139,0.15); color: var(--muted); }
+    .vl-label { flex: 1; color: var(--text); }
+    .vl-time { color: var(--muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════ SENTINEL OVERLAY ═══════ -->
+  <div id="sentinel-overlay">
+    <div class="overlay-icon">🛡️</div>
+    <div class="overlay-title">Sentinel is Inactive</div>
+    <div class="overlay-msg">
+      The exam cannot proceed until the Sentinel proctoring system is activated.
+      All input is blocked. Click below to begin your exam.
+    </div>
+    <button class="btn-activate" onclick="activateSentinel()">▶ Activate Sentinel & Start Exam</button>
+  </div>
+
+  <!-- ═══════ WARNING MODAL ═══════ -->
+  <div id="warning-modal">
+    <div class="warning-card">
+      <div class="w-icon">⚠️</div>
+      <h3>WARNING</h3>
+      <p id="warning-text">You have committed 3 violations. Further violations will result in mark deductions. This activity is being monitored and reported.</p>
+      <button class="btn-acknowledge" onclick="acknowledgeWarning()">I Understand</button>
+    </div>
+  </div>
+
+  <!-- ═══════ REPORT OVERLAY ═══════ -->
+  <div id="report-overlay">
+    <div class="report-card" id="report-content">
+      <!-- Dynamically populated -->
+    </div>
+  </div>
+
+  <!-- ═══════ TOP BAR ═══════ -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span>🛡️</span>
+      <h1>ExamGuardrail — Proctored Exam</h1>
+      <span class="sentinel-badge badge-inactive" id="badge">
+        <span>INACTIVE</span>
+      </span>
+    </div>
+    <div class="topbar-right">
+      <span class="stat-chip chip-violations" id="chip-violations">⚠ Violations: 0</span>
+      <span class="stat-chip chip-score" id="chip-score">Score: 0/0</span>
+      <span class="timer" id="timer">00:00</span>
+    </div>
+  </div>
+
+  <!-- ═══════ MAIN CONTENT ═══════ -->
+  <div class="container">
+
+    <div class="exam-info">
+      <div>
+        <h2>CS-101: Computer Science Fundamentals</h2>
+        <div class="exam-meta">10 MCQ Questions • 1 mark each • Negative marking from violations after 3</div>
+      </div>
+    </div>
+
+    <!-- QUESTIONS -->
+    <div id="questions-container"></div>
+
+    <!-- VIOLATION LOG -->
+    <div class="violation-log-panel" id="violation-log-panel">
+      <div class="vl-title">Live Violation Log</div>
+      <div class="vl-empty" id="vl-empty">✅ No violations detected. Keep it clean!</div>
+      <div id="vl-list"></div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-area">
+      <button class="btn-submit" id="btn-submit" disabled onclick="submitExam()">Submit Exam</button>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    // EXAM ENGINE (Page-Side Logic)
+    // ═══════════════════════════════════════════════════
+
+    // ── MCQ QUESTIONS ──────────────────────────────────
+    const QUESTIONS = [
+      { id: "Q1", question: "What does HTML stand for?", options: { A: "Hyper Text Markup Language", B: "High Tech Modern Language", C: "Hyper Transfer Markup Language", D: "Home Tool Markup Language" }, correct: "A" },
+      { id: "Q2", question: "Which data structure uses FIFO?", options: { A: "Stack", B: "Queue", C: "Tree", D: "Graph" }, correct: "B" },
+      { id: "Q3", question: "What is the time complexity of binary search?", options: { A: "O(n)", B: "O(n²)", C: "O(log n)", D: "O(1)" }, correct: "C" },
+      { id: "Q4", question: "Which keyword is used to define a constant in JavaScript?", options: { A: "var", B: "let", C: "const", D: "static" }, correct: "C" },
+      { id: "Q5", question: "What is the capital of France?", options: { A: "Berlin", B: "Madrid", C: "Paris", D: "Rome" }, correct: "C" },
+      { id: "Q6", question: "TCP operates at which layer of the OSI model?", options: { A: "Application", B: "Network", C: "Data Link", D: "Transport" }, correct: "D" },
+      { id: "Q7", question: "Which SQL command is used to retrieve data?", options: { A: "GET", B: "SELECT", C: "FETCH", D: "RETRIEVE" }, correct: "B" },
+      { id: "Q8", question: "What does CSS stand for?", options: { A: "Creative Style Sheets", B: "Cascading Style Sheets", C: "Computer Style Sheets", D: "Colorful Style Sheets" }, correct: "B" },
+      { id: "Q9", question: "Which protocol is used for secure web communication?", options: { A: "HTTP", B: "FTP", C: "HTTPS", D: "SMTP" }, correct: "C" },
+      { id: "Q10", question: "What is the default port for HTTP?", options: { A: "443", B: "21", C: "8080", D: "80" }, correct: "D" }
+    ];
+
+    // ── STATE ──────────────────────────────────────────
+    let sentinelActive = false;
+    let examSubmitted = false;
+    let answers = {};            // { Q1: 'A', Q2: 'B', ... }
+    let violations = [];         // [ { type, severity, timestamp, ... } ]
+    let warningShown = false;
+    let timerSeconds = 0;
+    let timerInterval = null;
+    const REPORT_ID = `EXAM-STD001-${Date.now()}`;
+
+    // Set session ID in meta tag
+    document.querySelector('meta[name="exam-session-id"]').content = REPORT_ID;
+
+    // ── RENDER QUESTIONS ──────────────────────────────
+    function renderQuestions() {
+      const container = document.getElementById('questions-container');
+      container.innerHTML = QUESTIONS.map((q, idx) => `
+        <div class="question-card" id="card-${q.id}">
+          <div class="q-header">
+            <span class="q-number">Q${idx + 1}</span>
+            <span class="q-marks">1 Mark</span>
+          </div>
+          <div class="q-text">${q.question}</div>
+          <div class="options">
+            ${Object.entries(q.options).map(([letter, text]) => `
+              <button class="option-btn" data-qid="${q.id}" data-letter="${letter}"
+                      onclick="selectAnswer('${q.id}', '${letter}', this)">
+                <span class="opt-letter">${letter}</span>
+                <span>${text}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectAnswer(qid, letter, btn) {
+      if (!sentinelActive || examSubmitted) return;
+
+      answers[qid] = letter;
+
+      // Update UI — clear selections for this question
+      const card = document.getElementById(`card-${qid}`);
+      card.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      card.classList.add('answered');
+
+      // Enable submit once at least 1 answer is selected
+      document.getElementById('btn-submit').disabled = false;
+
+      updateScoreChip();
+    }
+
+    function updateScoreChip() {
+      const answered = Object.keys(answers).length;
+      document.getElementById('chip-score').textContent = `Answered: ${answered}/${QUESTIONS.length}`;
+    }
+
+    // ── SENTINEL ACTIVATION ─────────────────────────
+    function activateSentinel() {
+      sentinelActive = true;
+      violations = [];
+      warningShown = false;
+
+      // Hide overlay
+      document.getElementById('sentinel-overlay').classList.add('hidden');
+
+      // Update badge
+      const badge = document.getElementById('badge');
+      badge.className = 'sentinel-badge badge-active';
+      badge.innerHTML = '<div class="live-dot"></div><span>ACTIVE</span>';
+
+      // Start timer
+      timerSeconds = 0;
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+        const s = String(timerSeconds % 60).padStart(2, '0');
+        document.getElementById('timer').textContent = `${m}:${s}`;
+      }, 1000);
+
+      // Tell the content script (cross-world bridge)
+      document.dispatchEvent(new CustomEvent('examSentinelStart'));
+      console.log('[ExamPage] Sentinel activated. Exam started.');
+    }
+
+    // ── VIOLATION HANDLING ─────────────────────────────
+    // Listen for violations dispatched by content.js
+    document.addEventListener('sentinelViolation', (e) => {
+      if (examSubmitted) return;
+
+      const v = e.detail;
+      violations.push(v);
+
+      // Update violation count chip
+      document.getElementById('chip-violations').textContent = `⚠ Violations: ${violations.length}`;
+
+      // Add to live log
+      addToViolationLog(v);
+
+      // Show warning at exactly 3 violations
+      if (violations.length === 3 && !warningShown) {
+        warningShown = true;
+        document.getElementById('warning-modal').classList.add('visible');
+      }
+
+      // Window minimize specific popup
+      if (v.type === 'WINDOW_BLUR') {
+        showMinimizePopup();
+      }
+    });
+
+    function addToViolationLog(v) {
+      document.getElementById('vl-empty').style.display = 'none';
+      const list = document.getElementById('vl-list');
+      const time = new Date(v.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const item = document.createElement('div');
+      item.className = 'vl-item';
+      item.innerHTML = `
+        <span class="vl-sev vl-sev-${v.severity}">${v.severity}</span>
+        <span class="vl-label">${v.type.replace(/_/g, ' ')}</span>
+        <span class="vl-time">${time}</span>
+      `;
+      list.prepend(item);
+    }
+
+    function acknowledgeWarning() {
+      document.getElementById('warning-modal').classList.remove('visible');
+    }
+
+    function showMinimizePopup() {
+      const text = document.getElementById('warning-text');
+      text.textContent = '⚠️ WARNING: Window minimization detected! This has been recorded as a violation.';
+      document.getElementById('warning-modal').classList.add('visible');
+    }
+
+    // ── EXAM SUBMISSION & REPORT ─────────────────────
+    function submitExam() {
+      if (examSubmitted) return;
+      if (!confirm('Are you sure you want to submit? You cannot change your answers after this.')) return;
+
+      examSubmitted = true;
+      sentinelActive = false;
+      clearInterval(timerInterval);
+
+      // Tell content script to stop
+      document.dispatchEvent(new CustomEvent('examSentinelStop'));
+
+      // Calculate scores
+      let rawScore = 0;
+      QUESTIONS.forEach(q => {
+        if (answers[q.id] === q.correct) rawScore++;
+      });
+
+      const totalViolations = violations.length;
+      const deductibleViolations = Math.max(0, totalViolations - 3);
+      const violationDeduction = deductibleViolations * 1; // -1 per violation after 3
+      const finalScore = Math.max(0, rawScore - violationDeduction);
+
+      // Show correct/wrong on questions
+      QUESTIONS.forEach(q => {
+        const card = document.getElementById(`card-${q.id}`);
+        card.querySelectorAll('.option-btn').forEach(btn => {
+          const letter = btn.dataset.letter;
+          if (letter === q.correct) btn.classList.add('correct');
+          else if (letter === answers[q.id] && answers[q.id] !== q.correct) btn.classList.add('wrong');
+          btn.style.pointerEvents = 'none';
+        });
+      });
+
+      // Build violation summary
+      const violationCounts = {};
+      violations.forEach(v => {
+        violationCounts[v.type] = (violationCounts[v.type] || 0) + 1;
+      });
+
+      let malpracticeSummary = 'No malpractice detected.';
+      if (totalViolations >= 5) malpracticeSummary = '🔴 FLAGGED — Significant malpractice indicators.';
+      else if (totalViolations >= 3) malpracticeSummary = '🟠 SUSPICIOUS — Multiple violations detected.';
+      else if (totalViolations >= 1) malpracticeSummary = '🟡 UNDER REVIEW — Minor activity flagged.';
+
+      // Time spent
+      const minutes = Math.floor(timerSeconds / 60);
+      const seconds = timerSeconds % 60;
+
+      // Build report
+      const reportHTML = `
+        <h2>📋 Exam Report</h2>
+
+        <div class="report-row">
+          <span class="report-label">Report ID</span>
+          <span class="report-value">${REPORT_ID}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Timestamp</span>
+          <span class="report-value">${new Date().toLocaleString()}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Time Spent</span>
+          <span class="report-value">${minutes}m ${seconds}s</span>
+        </div>
+
+        <div class="report-section-title">Score Breakdown</div>
+        <div class="report-row">
+          <span class="report-label">Total Questions</span>
+          <span class="report-value">${QUESTIONS.length}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Correct Answers</span>
+          <span class="report-value green">${rawScore}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Raw Score</span>
+          <span class="report-value green">${rawScore} / ${QUESTIONS.length}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Violation Deductions</span>
+          <span class="report-value red">${violationDeduction > 0 ? '-' + violationDeduction : '0'}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Final Score</span>
+          <span class="report-value" style="font-size:1.1rem; color:${finalScore >= 7 ? 'var(--success)' : finalScore >= 4 ? 'var(--warn)' : 'var(--danger)'}">
+            ${finalScore} / ${QUESTIONS.length}
+          </span>
+        </div>
+
+        <div class="report-section-title">Violation Summary</div>
+        <div class="report-row">
+          <span class="report-label">Total Violations</span>
+          <span class="report-value red">${totalViolations}</span>
+        </div>
+        <div class="report-row">
+          <span class="report-label">Malpractice Status</span>
+          <span class="report-value">${malpracticeSummary}</span>
+        </div>
+
+        ${violations.length > 0 ? `
+          <div class="report-section-title">Violation Timeline</div>
+          ${violations.map(v => {
+            const time = new Date(v.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            return `<div class="violation-entry">
+              <span class="v-type">${v.type.replace(/_/g, ' ')}</span>
+              <span class="v-time">🕐 ${time}</span>
+            </div>`;
+          }).join('')}
+        ` : ''}
+
+        <div class="ai-status">
+          🤖 AI Overlay Detection: PENDING REVIEW
+        </div>
+
+        <button class="btn-close-report" onclick="document.getElementById('report-overlay').classList.remove('visible')">
+          Close Report
+        </button>
+      `;
+
+      document.getElementById('report-content').innerHTML = reportHTML;
+      document.getElementById('report-overlay').classList.add('visible');
+
+      // Send report to backend
+      try {
+        fetch('http://localhost:8000/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            report_id: REPORT_ID,
+            student_id: 'STD001',
+            exam_id: 'CS-101',
+            total_questions: QUESTIONS.length,
+            correct_answers: rawScore,
+            raw_score: rawScore,
+            violation_deductions: violationDeduction,
+            final_score: finalScore,
+            total_violations: totalViolations,
+            violations: violations,
+            malpractice_summary: malpracticeSummary,
+            ai_overlay_status: 'PENDING_REVIEW',
+            timestamp: new Date().toISOString(),
+            time_spent_seconds: timerSeconds
+          })
+        }).catch(() => {});
+      } catch(e) {}
+    }
+
+    // ── INITIALIZATION ─────────────────────────────────
+    renderQuestions();
+    document.getElementById('btn-submit').disabled = true;
+  </script>
+</body>
+</html>

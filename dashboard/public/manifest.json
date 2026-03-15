@@ -1,0 +1,11 @@
+{
+  "name": "ExamGuardrail Sentinel",
+  "short_name": "Sentinel",
+  "display": "fullscreen",
+  "start_url": "/exam",
+  "background_color": "#1E3A8A",
+  "theme_color": "#1E3A8A",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }
+  ]
+}

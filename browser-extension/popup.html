@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      max-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0f1e;
+      color: #e8edf5;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #1a2233;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header h1 { font-size: 12px; font-weight: 700; color: #60A5FA; }
+    .version { font-size: 10px; color: #475569; font-weight: 600; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 10px; font-weight: 700;
+    }
+    .pill-live { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .pill-idle { background: rgba(100,116,139,0.1); color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .summary {
+      display: flex; gap: 6px; padding: 10px 14px; background: #111827;
+    }
+    .stat {
+      flex: 1; text-align: center; padding: 8px 4px;
+      border-radius: 8px; background: #0a0f1e; border: 1px solid #2a3548;
+    }
+    .stat-num { font-size: 18px; font-weight: 800; display: block; }
+    .stat-label { font-size: 9px; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
+    .num-red { color: #ef4444; }
+    .num-orange { color: #f59e0b; }
+    .num-blue { color: #3b82f6; }
+
+    .section-title {
+      padding: 8px 14px 4px;
+      font-size: 9px; font-weight: 700; color: #475569;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .clear-btn {
+      font-size: 9px; color: #475569; cursor: pointer;
+      background: none; border: none; font-family: inherit;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .clear-btn:hover { background: #1a2233; color: #94a3b8; }
+
+    .log { flex: 1; overflow-y: auto; max-height: 260px; }
+    .log::-webkit-scrollbar { width: 3px; }
+    .log::-webkit-scrollbar-track { background: #0a0f1e; }
+    .log::-webkit-scrollbar-thumb { background: #2a3548; border-radius: 2px; }
+
+    .v-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 14px; border-bottom: 1px solid #141c2e;
+    }
+    .v-item:hover { background: #111827; }
+
+    .sev {
+      flex-shrink: 0; padding: 2px 5px; border-radius: 3px;
+      font-size: 8px; font-weight: 800; letter-spacing: 0.04em; margin-top: 1px;
+    }
+    .sev-CRITICAL { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .sev-HIGH { background: rgba(249,115,22,0.15); color: #f97316; }
+    .sev-MEDIUM { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .sev-LOW { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+    .v-info { flex: 1; min-width: 0; }
+    .v-type { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .v-time { font-size: 9px; color: #475569; margin-top: 1px; }
+    .v-delta { font-size: 10px; font-weight: 700; flex-shrink: 0; color: #ef4444; }
+
+    .empty {
+      padding: 28px 14px; text-align: center; color: #2a3548; font-size: 11px;
+    }
+    .empty .icon { font-size: 24px; margin-bottom: 6px; }
+
+    .footer {
+      padding: 6px 14px; border-top: 1px solid #1a2233;
+      font-size: 9px; color: #2a3548;
+      display: flex; justify-content: space-between;
+    }
+    .footer span { color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <span>🛡️</span>
+      <h1>ExamGuardrail Sentinel</h1>
+      <span class="version">v2.0</span>
+    </div>
+    <div class="status-pill pill-live" id="status-pill"><div class="dot"></div>LIVE</div>
+  </div>
+
+  <div class="summary">
+    <div class="stat">
+      <span class="stat-num num-red" id="ct-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num num-orange" id="ct-high">0</span>
+      <span class="stat-label">High+</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num num-blue" id="ct-score">0</span>
+      <span class="stat-label">Score Lost</span>
+    </div>
+  </div>
+
+  <div class="section-title">
+    Violation Log
+    <button class="clear-btn" id="clear-btn">Clear</button>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <div class="footer">
+    Session: <span id="session-id">—</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
