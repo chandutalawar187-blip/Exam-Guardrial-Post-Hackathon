@@ -205,3 +205,20 @@ CREATE INDEX IF NOT EXISTS idx_native_events_session ON native_agent_events(sess
 CREATE INDEX IF NOT EXISTS idx_native_events_type ON native_agent_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_native_events_created ON native_agent_events(created_at DESC);
 
+-- 11. AGENT CODES (short 6-char code → exam session UUID mapping)
+DROP TABLE IF EXISTS agent_codes CASCADE;
+CREATE TABLE IF NOT EXISTS agent_codes (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  code          TEXT UNIQUE NOT NULL,              -- e.g. "A3X9K2"
+  session_id    TEXT NOT NULL,                     -- exam session UUID (as text for flexibility)
+  student_name  TEXT DEFAULT '',
+  exam_name     TEXT DEFAULT '',
+  admin_email   TEXT DEFAULT '',                   -- admin email for reports
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE agent_codes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON agent_codes FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_agent_codes_code ON agent_codes(code);
+CREATE INDEX IF NOT EXISTS idx_agent_codes_session ON agent_codes(session_id);
+

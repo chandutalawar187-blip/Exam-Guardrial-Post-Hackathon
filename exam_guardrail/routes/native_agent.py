@@ -1,15 +1,9 @@
 # exam_guardrail/routes/native_agent.py
-# API routes for the native desktop agent — heartbeats, findings, status.
-#
-# KEY DESIGN DECISION:
-#   The desktop app uses a plain TEXT exam code (e.g. "GO", "ABC-123") as
-#   its session_id, NOT a UUID FK into exam_sessions.  All native-agent data
-#   therefore lives in two dedicated tables:
-#       agent_heartbeats     — one row per code, upserted every 5 s
-#       native_agent_events  — one row per detected threat
-#   This avoids FK constraint errors from the existing events table.
+# API routes for the native desktop agent — codes, heartbeats, findings, email.
 
 import datetime
+import random
+import string
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
@@ -17,7 +11,7 @@ from exam_guardrail.db import get_db
 
 router = APIRouter(prefix='/api/native-agent', tags=['native-agent'])
 
-HEARTBEAT_TTL_SECONDS = 30  # seconds before we call an agent "disconnected"
+HEARTBEAT_TTL_SECONDS = 30
 
 
 # ── Pydantic models ──────────────────────────────────────────────────────────
@@ -28,7 +22,6 @@ class HeartbeatPayload(BaseModel):
     timestamp: str = ''
     stats: Optional[dict] = None
 
-
 class AgentEventPayload(BaseModel):
     session_id: str
     event_type: str
@@ -38,17 +31,82 @@ class AgentEventPayload(BaseModel):
     metadata: Optional[dict] = None
     platform: str = ''
 
+class GenerateCodePayload(BaseModel):
+    session_id: str
+    student_name: str = ''
+    exam_name: str = ''
+    admin_email: str = ''
+
+class SendReportPayload(BaseModel):
+    session_id: str
+    admin_email: str = ''
 
 class ScanRequestPayload(BaseModel):
     session_id: str
     block: bool = True
 
 
+# ── Short code generation ────────────────────────────────────────────────────
+
+def _gen_code(length=6):
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=length))
+
+
+@router.post('/generate-code')
+async def generate_code(payload: GenerateCodePayload):
+    """
+    Generate a short 6-char agent code for a session.
+    If one already exists for this session, return it.
+    Called by the student waiting room on mount.
+    """
+    db = get_db()
+    # Check for existing code for this session
+    try:
+        existing = db.table('agent_codes').select('code') \
+            .eq('session_id', payload.session_id).maybe_single().execute()
+        if existing.data:
+            return {'status': 'ok', 'code': existing.data['code']}
+    except Exception:
+        pass
+
+    # Generate a new unique code (retry up to 5 times)
+    for _ in range(5):
+        code = _gen_code()
+        try:
+            db.table('agent_codes').insert({
+                'code': code,
+                'session_id': payload.session_id,
+                'student_name': payload.student_name,
+                'exam_name': payload.exam_name,
+                'admin_email': payload.admin_email,
+            }).execute()
+            return {'status': 'ok', 'code': code}
+        except Exception:
+            continue  # Code collision, retry
+
+    return {'status': 'error', 'error': 'Could not generate unique code'}
+
+
+@router.get('/resolve-code/{code}')
+async def resolve_code(code: str):
+    """Resolve a short code to its session details."""
+    try:
+        db = get_db()
+        result = db.table('agent_codes').select('*') \
+            .eq('code', code.upper()).maybe_single().execute()
+        if result.data:
+            return {'status': 'ok', **result.data}
+        return {'status': 'not_found'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+
+
 # ── Heartbeat ────────────────────────────────────────────────────────────────
 
 @router.post('/heartbeat')
 async def agent_heartbeat(payload: HeartbeatPayload):
-    """Receive heartbeat from a running native agent and upsert into agent_heartbeats."""
+    """Receive heartbeat from a running native agent."""
     try:
         db = get_db()
         db.table('agent_heartbeats').upsert({
@@ -59,23 +117,34 @@ async def agent_heartbeat(payload: HeartbeatPayload):
         }, on_conflict='session_id').execute()
     except Exception as e:
         import logging
-        logging.getLogger('native_agent').warning(f'Heartbeat DB write failed: {e}')
+        logging.getLogger('native_agent').warning(f'Heartbeat write failed: {e}')
     return {'status': 'ok'}
 
 
 @router.get('/status/{session_id}')
 async def agent_status(session_id: str):
-    """Check if a native agent is alive for a given session (heartbeat within TTL)."""
+    """
+    Check if agent is alive. Accepts either a UUID session_id or short code.
+    The student waiting room calls this with its session UUID.
+    We first check if there's an agent_codes entry mapping, then check heartbeats.
+    """
     try:
         db = get_db()
-        result = db.table('agent_heartbeats') \
-            .select('*') \
-            .eq('session_id', session_id) \
-            .maybe_single() \
-            .execute()
+        lookup_id = session_id
+
+        # Check if this is a UUID — if so, look up if there's an agent_code pointing to it
+        # and check the heartbeat using the short code instead
+        code_result = db.table('agent_codes').select('code') \
+            .eq('session_id', session_id).maybe_single().execute()
+        if code_result.data:
+            # An agent_code was generated for this session — the agent uses the short code
+            lookup_id = code_result.data['code']
+
+        result = db.table('agent_heartbeats').select('*') \
+            .eq('session_id', lookup_id).maybe_single().execute()
 
         if not result.data:
-            return {'status': 'disconnected'}
+            return {'status': 'disconnected', 'code': code_result.data['code'] if code_result.data else None}
 
         row = result.data
         last_seen_str = row.get('last_seen', '')
@@ -98,7 +167,7 @@ async def agent_status(session_id: str):
 
 @router.get('/all-heartbeats')
 async def get_all_heartbeats():
-    """Return all agent heartbeats with live/offline status (for admin overview)."""
+    """Return all agent heartbeats for admin overview."""
     try:
         db = get_db()
         result = db.table('agent_heartbeats').select('*') \
@@ -125,10 +194,7 @@ async def get_all_heartbeats():
 
 @router.post('/event')
 async def post_agent_event(payload: AgentEventPayload):
-    """
-    Record a single threat-detection event from the desktop agent.
-    Stored in native_agent_events (TEXT session_id — no UUID FK).
-    """
+    """Record a threat event from the desktop agent."""
     try:
         db = get_db()
         db.table('native_agent_events').insert({
@@ -148,7 +214,7 @@ async def post_agent_event(payload: AgentEventPayload):
 
 @router.get('/findings')
 async def get_findings(session_id: Optional[str] = None, limit: int = 200):
-    """Return native agent threat events, optionally filtered by session_id."""
+    """Return native agent events, optionally filtered by session_id."""
     try:
         db = get_db()
         query = db.table('native_agent_events').select('*')
@@ -160,11 +226,65 @@ async def get_findings(session_id: Optional[str] = None, limit: int = 200):
         return {'status': 'error', 'count': 0, 'findings': [], 'error': str(e)}
 
 
-# ── On-demand scan (server-side, for testing) ─────────────────────────────────
+# ── Email report ──────────────────────────────────────────────────────────────
+
+@router.post('/send-report')
+async def send_report(payload: SendReportPayload):
+    """
+    Compile all findings for a session and email them to the admin.
+    Looks up admin_email from agent_codes if not provided.
+    """
+    from exam_guardrail.services.email_report import send_report_email
+    db = get_db()
+    admin_email = payload.admin_email
+    student_name = ''
+    exam_name = ''
+
+    # Look up code info
+    try:
+        code_info = db.table('agent_codes').select('*') \
+            .eq('session_id', payload.session_id).maybe_single().execute()
+        if not code_info.data:
+            # Maybe session_id is the short code itself
+            code_info = db.table('agent_codes').select('*') \
+                .eq('code', payload.session_id.upper()).maybe_single().execute()
+        if code_info.data:
+            admin_email = admin_email or code_info.data.get('admin_email', '')
+            student_name = code_info.data.get('student_name', '')
+            exam_name = code_info.data.get('exam_name', '')
+    except Exception:
+        pass
+
+    if not admin_email:
+        return {'status': 'error', 'error': 'No admin email configured for this session'}
+
+    # Fetch findings
+    try:
+        findings_result = db.table('native_agent_events').select('*') \
+            .eq('session_id', payload.session_id) \
+            .order('created_at', desc=True).limit(200).execute()
+        findings = findings_result.data or []
+    except Exception:
+        findings = []
+
+    # Fetch stats from heartbeat
+    stats = {}
+    try:
+        hb = db.table('agent_heartbeats').select('stats') \
+            .eq('session_id', payload.session_id).maybe_single().execute()
+        if hb.data:
+            stats = hb.data.get('stats', {})
+    except Exception:
+        pass
+
+    ok = send_report_email(admin_email, payload.session_id, student_name, exam_name, findings, stats)
+    return {'status': 'ok' if ok else 'smtp_not_configured', 'emailed_to': admin_email, 'findings_count': len(findings)}
+
+
+# ── Utility endpoints ─────────────────────────────────────────────────────────
 
 @router.post('/scan')
 async def trigger_scan(payload: ScanRequestPayload):
-    """Run an on-demand scan in the backend process (testing only)."""
     try:
         from exam_guardrail.services.scanners.agent_runner import NativeAgent
         agent = NativeAgent(session_id=payload.session_id, block=payload.block)
@@ -173,38 +293,30 @@ async def trigger_scan(payload: ScanRequestPayload):
     except Exception as e:
         return {'status': 'error', 'error': str(e)}
 
-
 @router.get('/blocked-list')
 async def get_blocked_list():
-    """Return the list of process names and extension IDs that will be blocked."""
     try:
         from exam_guardrail.services.scanners.process_blocker import get_blocked_process_names
         from exam_guardrail.services.scanners.extension_detector import get_blocked_extension_ids
         return {
-            'processes': {'count': len(sorted(get_blocked_process_names())), 'names': sorted(get_blocked_process_names())},
-            'extensions': {'count': len(sorted(get_blocked_extension_ids())), 'ids': sorted(get_blocked_extension_ids())},
+            'processes': sorted(get_blocked_process_names()),
+            'extensions': sorted(get_blocked_extension_ids()),
         }
     except Exception as e:
         return {'error': str(e)}
 
-
 @router.get('/blocked-extensions')
 async def get_blocked_extensions():
-    """Scan and return all detected cheating extensions across browsers."""
     try:
         from exam_guardrail.services.scanners.extension_detector import scan_extensions
-        findings = scan_extensions(block=False)
-        return {'count': len(findings), 'extensions': findings}
+        return {'extensions': scan_extensions(block=False)}
     except Exception as e:
-        return {'count': 0, 'extensions': [], 'error': str(e)}
-
+        return {'extensions': [], 'error': str(e)}
 
 @router.post('/restore-extensions')
 async def restore_blocked_extensions():
-    """Re-enable all previously blocked extensions (call after exam ends)."""
     try:
         from exam_guardrail.services.scanners.extension_detector import restore_extensions
-        restored = restore_extensions()
-        return {'status': 'ok', 'restored_count': restored}
+        return {'status': 'ok', 'restored_count': restore_extensions()}
     except Exception as e:
         return {'status': 'error', 'error': str(e)}
