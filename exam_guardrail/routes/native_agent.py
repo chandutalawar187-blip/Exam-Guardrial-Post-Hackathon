@@ -4,10 +4,11 @@
 import datetime
 import random
 import string
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from exam_guardrail.db import get_db
+from exam_guardrail.services.email_report import send_report_email
 
 router = APIRouter(prefix='/api/native-agent', tags=['native-agent'])
 
@@ -193,7 +194,7 @@ async def get_all_heartbeats():
 # ── Native agent events ───────────────────────────────────────────────────────
 
 @router.post('/event')
-async def post_agent_event(payload: AgentEventPayload):
+async def post_agent_event(payload: AgentEventPayload, background_tasks: BackgroundTasks):
     """Record a threat event from the desktop agent."""
     try:
         db = get_db()
@@ -206,6 +207,37 @@ async def post_agent_event(payload: AgentEventPayload):
             'metadata':    payload.metadata or {},
             'platform':    payload.platform,
         }).execute()
+
+        # AUTOMATED INSTANT ALERT: If severity is high/critical, send email immediately
+        severity = (payload.severity or 'MEDIUM').upper()
+        if severity in ('CRITICAL', 'HIGH'):
+            # Look up code info for context and email
+            code_info = db.table('agent_codes').select('*') \
+                .eq('session_id', payload.session_id).maybe_single().execute()
+            if not code_info.data:
+                code_info = db.table('agent_codes').select('*') \
+                    .eq('code', payload.session_id.upper()).maybe_single().execute()
+            
+            if code_info.data and code_info.data.get('admin_email'):
+                admin_email = code_info.data['admin_email']
+                student_name = code_info.data.get('student_name', 'Student')
+                exam_name = code_info.data.get('exam_name', 'Exam')
+                
+                # Fetch recent findings for this session to include in the alert
+                findings_result = db.table('native_agent_events').select('*') \
+                    .eq('session_id', payload.session_id) \
+                    .order('created_at', desc=True).limit(5).execute()
+                
+                background_tasks.add_task(
+                    send_report_email,
+                    admin_email,
+                    payload.session_id,
+                    student_name,
+                    exam_name,
+                    findings_result.data or [],
+                    {} # Stats not needed for instant alert
+                )
+
     except Exception as e:
         import logging
         logging.getLogger('native_agent').warning(f'Event insert failed: {e}')
@@ -229,12 +261,11 @@ async def get_findings(session_id: Optional[str] = None, limit: int = 200):
 # ── Email report ──────────────────────────────────────────────────────────────
 
 @router.post('/send-report')
-async def send_report(payload: SendReportPayload):
+async def send_report(payload: SendReportPayload, background_tasks: BackgroundTasks):
     """
     Compile all findings for a session and email them to the admin.
     Looks up admin_email from agent_codes if not provided.
     """
-    from exam_guardrail.services.email_report import send_report_email
     db = get_db()
     admin_email = payload.admin_email
     student_name = ''
@@ -277,8 +308,16 @@ async def send_report(payload: SendReportPayload):
     except Exception:
         pass
 
-    ok = send_report_email(admin_email, payload.session_id, student_name, exam_name, findings, stats)
-    return {'status': 'ok' if ok else 'smtp_not_configured', 'emailed_to': admin_email, 'findings_count': len(findings)}
+    background_tasks.add_task(
+        send_report_email,
+        admin_email,
+        payload.session_id,
+        student_name,
+        exam_name,
+        findings,
+        stats
+    )
+    return {'status': 'pending', 'emailed_to': admin_email, 'findings_count': len(findings)}
 
 
 # ── Utility endpoints ─────────────────────────────────────────────────────────
