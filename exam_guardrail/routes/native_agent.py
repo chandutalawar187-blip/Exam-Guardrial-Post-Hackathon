@@ -1,6 +1,7 @@
 # exam_guardrail/routes/native_agent.py
 # API routes for the native agent — heartbeat, scan status, on-demand triggers.
 
+import datetime
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
@@ -8,8 +9,8 @@ from exam_guardrail.db import get_db
 
 router = APIRouter(prefix='/api/native-agent', tags=['native-agent'])
 
-# In-memory storage for agent heartbeats
-_agent_heartbeats = {}
+# How many seconds old a heartbeat can be before we consider the agent disconnected
+HEARTBEAT_TTL_SECONDS = 30
 
 
 class HeartbeatPayload(BaseModel):
@@ -26,23 +27,67 @@ class ScanRequestPayload(BaseModel):
 
 @router.post('/heartbeat')
 async def agent_heartbeat(payload: HeartbeatPayload):
-    """Receive heartbeat from a running native agent."""
-    _agent_heartbeats[payload.session_id] = {
-        'platform': payload.platform,
-        'timestamp': payload.timestamp,
-        'stats': payload.stats or {},
-        'alive': True,
-    }
+    """Receive heartbeat from a running native agent and persist to Supabase."""
+    try:
+        db = get_db()
+        db.table('agent_heartbeats').upsert({
+            'session_id': payload.session_id,
+            'platform': payload.platform,
+            'stats': payload.stats or {},
+            'last_seen': datetime.datetime.utcnow().isoformat(),
+        }).execute()
+    except Exception as e:
+        # Don't crash the agent if DB write fails — just log it
+        import logging
+        logging.getLogger('exam_guardrail.native_agent').warning(
+            f'Heartbeat DB write failed: {e}'
+        )
     return {'status': 'ok'}
 
 
 @router.get('/status/{session_id}')
 async def agent_status(session_id: str):
-    """Check if a native agent is alive for a given session."""
-    hb = _agent_heartbeats.get(session_id)
-    if hb:
-        return {'status': 'connected', **hb}
-    return {'status': 'disconnected'}
+    """Check if a native agent is alive for a given session (within last 30s)."""
+    try:
+        db = get_db()
+        result = db.table('agent_heartbeats') \
+            .select('*') \
+            .eq('session_id', session_id) \
+            .maybe_single() \
+            .execute()
+
+        if not result.data:
+            return {'status': 'disconnected'}
+
+        row = result.data
+        last_seen_str = row.get('last_seen', '')
+        if last_seen_str:
+            # Parse and check if within TTL
+            last_seen = datetime.datetime.fromisoformat(
+                last_seen_str.replace('Z', '+00:00')
+            )
+            now = datetime.datetime.now(datetime.timezone.utc)
+            age_seconds = (now - last_seen).total_seconds()
+            if age_seconds > HEARTBEAT_TTL_SECONDS:
+                return {
+                    'status': 'disconnected',
+                    'last_seen': last_seen_str,
+                    'age_seconds': int(age_seconds),
+                }
+
+        return {
+            'status': 'connected',
+            'platform': row.get('platform', ''),
+            'last_seen': last_seen_str,
+            'stats': row.get('stats', {}),
+        }
+
+    except Exception as e:
+        import logging
+        logging.getLogger('exam_guardrail.native_agent').warning(
+            f'Heartbeat status check failed: {e}'
+        )
+        return {'status': 'disconnected', 'error': str(e)}
 
 
 @router.post('/scan')

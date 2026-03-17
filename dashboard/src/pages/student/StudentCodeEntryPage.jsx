@@ -169,7 +169,24 @@ export default function StudentCodeEntryPage() {
             </button>
           </form>
 
+          {/* Agent Pre-flight Notice */}
+          <div className="mt-6 bg-[#0A4174]/40 border border-[#4E8EA2]/60 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-7 h-7 bg-[#4E8EA2] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-white text-xs font-black">G</span>
+              </div>
+              <div>
+                <p className="text-[#BDD8E9] text-[12px] font-bold mb-1">ExamGuardrailAgent Required</p>
+                <p className="text-[#7BBDE8] text-[11px] leading-relaxed">
+                  Before entering the exam, make sure <strong className="text-[#BDD8E9]">ExamGuardrailAgent.exe</strong> is
+                  running on your PC. Your instructor will provide the download link.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Info Box */}
+
           <div className="mt-8 pt-6 border-t border-[#4E8EA2]">
             <p className="text-[#7BBDE8] text-xs text-center">
               ℹ️ Your code grants access to a specific exam. Once entered, you will not be able to change it.

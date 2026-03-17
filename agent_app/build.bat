@@ -1,0 +1,30 @@
+@echo off
+REM ============================================================
+REM ExamGuardrail Agent — Windows Build Script
+REM Creates a single .exe that students can run without Python
+REM ============================================================
+
+echo Installing dependencies...
+pip install -r requirements.txt
+pip install pyinstaller
+
+echo.
+echo Building ExamGuardrailAgent.exe...
+pyinstaller ^
+    --onefile ^
+    --windowed ^
+    --name "ExamGuardrailAgent" ^
+    --add-data "..\exam_guardrail;exam_guardrail" ^
+    --hidden-import psutil ^
+    --hidden-import httpx ^
+    --hidden-import pystray ^
+    --hidden-import PIL ^
+    guardrail_agent.py
+
+echo.
+echo ============================================================
+echo Build complete!
+echo Output: dist\ExamGuardrailAgent.exe
+echo Share this .exe with students before the exam.
+echo ============================================================
+pause

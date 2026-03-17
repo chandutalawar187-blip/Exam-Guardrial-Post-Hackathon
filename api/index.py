@@ -27,5 +27,7 @@ from exam_guardrail import init_guardrail, GuardrailConfig
 app = FastAPI(title="ExamGuardrail", version="2.0.0")
 
 # Load config from Vercel environment variables
-config = GuardrailConfig()
+# native_agent_enabled=False — scanning is done by the desktop app on the student's machine,
+# not on the Vercel server. The /api/native-agent/* routes still work for heartbeat/status.
+config = GuardrailConfig(native_agent_enabled=False)
 init_guardrail(app, config)
