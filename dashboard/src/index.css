@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Cognivigil Core Palette */
+  --primary: #0B1F3B;
+  --secondary: #2563EB;
+  --accent: #14B8A6;
+  --neutral-dark: #64748B;
+  --neutral-light: #F8FAFC;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+
+  /* Premium Dark Theme Extensions */
+  --bg-deep: #020617;
+  --bg-card: #080f1e;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --text-main: #f8fafc;
+  --text-muted: #64748b;
+  --border-dim: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg-deep); /* Force dark mode preference */
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Premium Animations */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0% { filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5)); }
+  50% { filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.8)); }
+  100% { filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5)); }
+}
+
+@keyframes pulse-teal {
+  0%, 100% { transform: scale(1); opacity: 0.15; }
+  50% { transform: scale(1.5); opacity: 0.05; }
+}
+
+.fade-in { animation: fade-in-up 0.4s ease-out forwards; }
+.animate-pulse-teal { animation: pulse-teal 4s ease-in-out infinite; }
+
+.premium-gradient-text {
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glassmorphism */
+.glass-panel {
+  background: rgba(8, 15, 30, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.neon-border-blue {
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Auth Backdrop Rings */
+.ring-overlay {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border: 2px solid var(--secondary);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.1;
+}

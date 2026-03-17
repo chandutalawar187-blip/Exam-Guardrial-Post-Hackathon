@@ -1,0 +1,69 @@
+{
+  "name": "exam-guardrail",
+  "version": "1.0.3",
+  "description": "Drop-in exam proctoring middleware — violation detection, camera/mic monitoring, credibility scoring for any web-based exam platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.js",
+      "types": "./dist/react.d.ts"
+    },
+    "./overlay": {
+      "import": "./dist/overlay.mjs",
+      "require": "./dist/overlay.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "exam",
+    "proctoring",
+    "middleware",
+    "monitoring",
+    "violation-detection",
+    "webcam",
+    "guardrail",
+    "anti-cheating",
+    "credibility"
+  ],
+  "author": "CogniVigil",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
+    "@rollup/plugin-babel": "^7.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.59.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chandutalawar187-blip/Exam-guardrial-middleware"
+  }
+}
