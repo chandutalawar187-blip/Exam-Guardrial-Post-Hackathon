@@ -76,10 +76,11 @@ C = {
 
 # ── AGENT LOGIC ─────────────────────────────────────────────────────────────
 class AgentCore:
-    def __init__(self, session_id, api_url, block=True, on_status=None, on_finding=None, on_heartbeat=None):
+    def __init__(self, session_id, api_url, block=True, admin_email='', on_status=None, on_finding=None, on_heartbeat=None):
         self.session_id = session_id
         self.api_base = api_url.rstrip("/")
         self.block = block
+        self.admin_email = admin_email
         self.on_status = on_status or (lambda s: None)
         self.on_finding = on_finding or (lambda f: None)
         self.on_heartbeat = on_heartbeat or (lambda ok: None)
@@ -100,6 +101,17 @@ class AgentCore:
                     counter = 0
                     await self._scan(client)
         self.on_status("stopped")
+        await self._send_report()
+
+    async def _send_report(self):
+        """Trigger an email report from the backend."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(f"{self.api_base}/api/native-agent/send-report", json={
+                    "session_id": self.session_id,
+                    "admin_email": self.admin_email,
+                })
+        except: pass
 
     async def _heartbeat(self, client):
         try:
@@ -164,6 +176,7 @@ class InstallWizard(tk.Toplevel):
         self._step = 0
         self._session_var = tk.StringVar()
         self._api_var = tk.StringVar(value=DEFAULT_API_URL)
+        self._admin_email_var = tk.StringVar()
         self._block_var = tk.BooleanVar(value=True)
         self._build()
         self._show_step(0)
@@ -283,6 +296,14 @@ class InstallWizard(tk.Toplevel):
         tk.Label(f, text="Leave default unless your instructor specified a different URL.",
                  font=("Arial", 9), bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
 
+        tk.Label(f, text="ADMIN EMAIL (Optional)", font=("Arial", 9, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
+        tk.Entry(f, textvariable=self._admin_email_var, font=("Arial", 10),
+                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
+                 relief="flat", bd=10).pack(fill="x", ipady=6)
+        tk.Label(f, text="Reports will be sent here if provided.",
+                 font=("Arial", 9), bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
+
         blk = tk.Frame(f, bg=C["card"], pady=12, padx=14)
         blk.pack(fill="x", pady=(16, 0))
         cb = tk.Checkbutton(blk, variable=self._block_var, bg=C["card"],
@@ -321,7 +342,9 @@ class InstallWizard(tk.Toplevel):
         if self._step == 3:
             self.destroy()
             self.on_complete(self._session_var.get().strip().upper(),
-                             self._api_var.get().strip(), self._block_var.get())
+                             self._api_var.get().strip(), 
+                             self._block_var.get(),
+                             self._admin_email_var.get().strip())
             return
         self._step += 1
         self._show_step(self._step)
@@ -462,20 +485,21 @@ class GuardrailApp(tk.Tk):
         wiz = InstallWizard(self, self._on_wizard_complete)
         wiz.show()
 
-    def _on_wizard_complete(self, session_id, api_url, block):
+    def _on_wizard_complete(self, session_id, api_url, block, admin_email):
         self._session_id = session_id
         self._api_url = api_url
         self._block = block
+        self._admin_email = admin_email
         self._subtitle.configure(text=f"Session: {session_id}")
         self._session_lbl.configure(text=f"API: {api_url}")
         self._status_lbl.configure(text="Starting agent...", fg=C["amber"])
         self._dot.configure(fg=C["amber"])
         self._append_log(f"Session code: {session_id}", "ok")
         self._append_log(f"API: {api_url}", "dim")
-        self._start_agent(session_id, api_url, block)
+        self._start_agent(session_id, api_url, block, admin_email)
 
-    def _start_agent(self, session_id, api_url, block):
-        self._agent = AgentCore(session_id, api_url, block,
+    def _start_agent(self, session_id, api_url, block, admin_email):
+        self._agent = AgentCore(session_id, api_url, block, admin_email,
                                 on_status=self._on_status,
                                 on_finding=self._on_finding,
                                 on_heartbeat=self._on_heartbeat)
