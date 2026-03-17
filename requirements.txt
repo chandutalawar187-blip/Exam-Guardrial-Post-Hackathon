@@ -1,0 +1,15 @@
+# Root-level requirements.txt — used by Vercel for Python serverless functions
+# Vercel reads this file to install dependencies before running api/index.py
+
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+websockets>=11.0
+python-dotenv>=1.0.0
+pydantic-settings>=2.0.0
+supabase>=2.0.0
+anthropic>=0.20.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+psutil>=5.9.0
+httpx>=0.24.0
+mangum>=0.17.0

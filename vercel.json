@@ -1,27 +1,22 @@
 {
   "buildCommand": "npm run build --prefix dashboard",
+  "installCommand": "npm install --prefix dashboard && pip install -e .",
   "outputDirectory": "dashboard/dist",
-  "framework": "vite",
+  "framework": null,
   "functions": {
     "api/index.py": {
       "runtime": "python3.12",
-      "maxDuration": 300
+      "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
-      "destination": "/"
+      "destination": "/index.html"
     }
-  ],
-  "env": {
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_KEY": "@supabase_key",
-    "ADMIN_USERNAME": "@admin_username",
-    "ADMIN_PASSWORD": "@admin_password"
-  }
+  ]
 }
