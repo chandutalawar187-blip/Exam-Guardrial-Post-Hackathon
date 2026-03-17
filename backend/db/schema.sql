@@ -160,3 +160,48 @@ CREATE INDEX IF NOT EXISTS idx_scores_session ON answer_scores(session_id);
 CREATE INDEX IF NOT EXISTS idx_student_users_uid ON student_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON exam_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_tokens_student_exam ON exam_tokens(student_id, exam_name);
+
+-- ==============================================
+-- NATIVE DESKTOP AGENT TABLES
+-- These use TEXT session_id (not UUID FK) so the
+-- desktop app can use any exam code the admin provides.
+-- ==============================================
+
+-- 9. AGENT HEARTBEATS (one row per agent session, upserted every 5s)
+DROP TABLE IF EXISTS agent_heartbeats CASCADE;
+CREATE TABLE IF NOT EXISTS agent_heartbeats (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id    TEXT UNIQUE NOT NULL,          -- exam code, e.g. "ABC-123"
+  platform      TEXT DEFAULT '',
+  stats         JSONB DEFAULT '{}',
+  last_seen     TIMESTAMPTZ DEFAULT NOW(),
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE agent_heartbeats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON agent_heartbeats FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE agent_heartbeats;
+CREATE INDEX IF NOT EXISTS idx_heartbeats_session ON agent_heartbeats(session_id);
+CREATE INDEX IF NOT EXISTS idx_heartbeats_last_seen ON agent_heartbeats(last_seen);
+
+-- 10. NATIVE AGENT EVENTS (threats detected by desktop agent)
+DROP TABLE IF EXISTS native_agent_events CASCADE;
+CREATE TABLE IF NOT EXISTS native_agent_events (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id    TEXT NOT NULL,                 -- exam code (TEXT, not UUID FK)
+  event_type    TEXT NOT NULL,
+  severity      TEXT DEFAULT 'MEDIUM',
+  layer         TEXT DEFAULT 'L4',
+  score_delta   INTEGER DEFAULT -10,
+  metadata      JSONB DEFAULT '{}',
+  platform      TEXT DEFAULT '',
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE native_agent_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON native_agent_events FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE native_agent_events;
+CREATE INDEX IF NOT EXISTS idx_native_events_session ON native_agent_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_native_events_type ON native_agent_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_native_events_created ON native_agent_events(created_at DESC);
+

@@ -135,13 +135,14 @@ class AgentCore:
         for f in findings:
             self.on_finding(f)
             try:
-                await client.post(f"{self.api_base}/api/events", json={
+                await client.post(f"{self.api_base}/api/native-agent/event", json={
                     "session_id": self.session_id,
                     "event_type": f.get("event_type", "UNKNOWN"),
                     "severity": f.get("severity", "medium"),
                     "layer": f.get("layer", "L4"),
                     "score_delta": f.get("score_delta", -10),
                     "metadata": f.get("metadata", {}),
+                    "platform": f"{platform.system()} {platform.release()}",
                 })
             except: pass
 
@@ -193,13 +194,9 @@ class InstallWizard(tk.Toplevel):
 
         # Step indicator
         self._step_bar = tk.Frame(self, bg=C["bg"])
-        self._step_bar.pack(fill="x", padx=30, pady=(20, 0))
+        self._step_bar.pack(fill="x", padx=30, pady=(14, 0))
 
-        # Content area
-        self._content = tk.Frame(self, bg=C["bg"])
-        self._content.pack(fill="both", expand=True, padx=30, pady=10)
-
-        # Footer nav
+        # Footer nav — MUST pack before content (side="bottom" requires earlier pack order)
         nav = tk.Frame(self, bg=C["surface"], height=60)
         nav.pack(fill="x", side="bottom")
         nav.pack_propagate(False)
@@ -211,6 +208,11 @@ class InstallWizard(tk.Toplevel):
                                    font=("Arial", 11, "bold"), bg=C["accent"], fg=C["white"],
                                    relief="flat", padx=20, cursor="hand2")
         self._btn_next.pack(side="right", padx=20, pady=12)
+
+        # Content area — packed AFTER footer so expand=True doesn't steal footer space
+        self._content = tk.Frame(self, bg=C["bg"])
+        self._content.pack(fill="both", expand=True, padx=30, pady=10)
+
 
     def _show_step(self, step):
         for w in self._content.winfo_children():

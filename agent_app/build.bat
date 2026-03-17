@@ -10,6 +10,7 @@ pip install pyinstaller
 
 echo.
 echo Building ExamGuardrailAgent.exe...
+set OUTDIR=%TEMP%\ExamAgentBuild
 python -m PyInstaller ^
     --onefile ^
     --windowed ^
@@ -20,12 +21,13 @@ python -m PyInstaller ^
     --hidden-import pystray ^
     --hidden-import PIL ^
     --hidden-import tkinter ^
+    --distpath "%OUTDIR%" ^
     guardrail_app.py
 
 echo.
 echo ============================================================
 echo Build complete!
-echo Output: dist\ExamGuardrailAgent.exe
+echo Output: %OUTDIR%\ExamGuardrailAgent.exe
 echo Share this .exe with students before the exam.
 echo ============================================================
 pause

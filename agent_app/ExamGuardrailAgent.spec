@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['guardrail_agent.py'],
+    ['guardrail_app.py'],
     pathex=[],
     binaries=[],
     datas=[('..\\exam_guardrail', 'exam_guardrail')],
-    hiddenimports=['psutil', 'httpx', 'pystray', 'PIL'],
+    hiddenimports=['psutil', 'httpx', 'pystray', 'PIL', 'tkinter'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
