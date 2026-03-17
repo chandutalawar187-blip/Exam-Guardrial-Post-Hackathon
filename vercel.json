@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build --prefix dashboard",
-  "installCommand": "npm install --prefix dashboard && pip install -e .",
+  "installCommand": "npm install --prefix dashboard",
   "outputDirectory": "dashboard/dist",
   "framework": null,
   "functions": {
