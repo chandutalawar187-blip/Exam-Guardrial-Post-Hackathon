@@ -20,6 +20,7 @@ HEARTBEAT_TTL_SECONDS = 30
 class HeartbeatPayload(BaseModel):
     session_id: str
     platform: str = ''
+    exam_url: str = ''
     timestamp: str = ''
     stats: Optional[dict] = None
 
@@ -36,6 +37,7 @@ class GenerateCodePayload(BaseModel):
     session_id: str
     student_name: str = ''
     exam_name: str = ''
+    exam_url: str = ''
     admin_email: str = ''
 
 class SendReportPayload(BaseModel):
@@ -80,6 +82,7 @@ async def generate_code(payload: GenerateCodePayload):
                 'session_id': payload.session_id,
                 'student_name': payload.student_name,
                 'exam_name': payload.exam_name,
+                'exam_url': payload.exam_url,
                 'admin_email': payload.admin_email,
             }).execute()
             return {'status': 'ok', 'code': code}
@@ -113,6 +116,7 @@ async def agent_heartbeat(payload: HeartbeatPayload):
         db.table('agent_heartbeats').upsert({
             'session_id': payload.session_id,
             'platform': payload.platform,
+            'exam_url': payload.exam_url,
             'stats': payload.stats or {},
             'last_seen': datetime.datetime.utcnow().isoformat(),
         }, on_conflict='session_id').execute()
@@ -135,7 +139,7 @@ async def agent_status(session_id: str):
 
         # Check if this is a UUID — if so, look up if there's an agent_code pointing to it
         # and check the heartbeat using the short code instead
-        code_result = db.table('agent_codes').select('code') \
+        code_result = db.table('agent_codes').select('*') \
             .eq('session_id', session_id).maybe_single().execute()
         if code_result.data:
             # An agent_code was generated for this session — the agent uses the short code
@@ -159,6 +163,7 @@ async def agent_status(session_id: str):
         return {
             'status': 'connected',
             'platform': row.get('platform', ''),
+            'exam_url': row.get('exam_url') or (code_result.data.get('exam_url', '') if code_result.data else ''),
             'last_seen': last_seen_str,
             'stats': row.get('stats', {}),
         }

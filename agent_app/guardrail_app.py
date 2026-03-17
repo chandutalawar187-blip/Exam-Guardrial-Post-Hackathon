@@ -16,6 +16,8 @@ import logging
 import tkinter as tk
 from tkinter import font as tkfont
 import time
+import webbrowser # Added by user instruction
+import httpx      # Moved from try/except block by user instruction
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -76,11 +78,12 @@ C = {
 
 # ── AGENT LOGIC ─────────────────────────────────────────────────────────────
 class AgentCore:
-    def __init__(self, session_id, api_url, block=True, admin_email='', on_status=None, on_finding=None, on_heartbeat=None):
+    def __init__(self, session_id, api_url, block=True, admin_email='', exam_url='', on_status=None, on_finding=None, on_heartbeat=None):
         self.session_id = session_id
         self.api_base = api_url.rstrip("/")
         self.block = block
         self.admin_email = admin_email
+        self.exam_url = exam_url
         self.on_status = on_status or (lambda s: None)
         self.on_finding = on_finding or (lambda f: None)
         self.on_heartbeat = on_heartbeat or (lambda ok: None)
@@ -90,6 +93,12 @@ class AgentCore:
     async def run(self):
         self._running = True
         self.on_status("running")
+
+        # AUTO-LAUNCH BROWSER: If exam_url is provided, open it now that monitoring is active
+        if self.exam_url and self.exam_url.startswith('http'):
+            try: webbrowser.open(self.exam_url)
+            except: pass
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             await self._heartbeat(client)
             counter = 0
@@ -118,6 +127,7 @@ class AgentCore:
             r = await client.post(f"{self.api_base}/api/native-agent/heartbeat", json={
                 "session_id": self.session_id,
                 "platform": f"{platform.system()} {platform.release()}",
+                "exam_url": self.exam_url,
                 "timestamp": datetime.datetime.utcnow().isoformat(),
                 "stats": self.stats,
             })
@@ -496,10 +506,29 @@ class GuardrailApp(tk.Tk):
         self._dot.configure(fg=C["amber"])
         self._append_log(f"Session code: {session_id}", "ok")
         self._append_log(f"API: {api_url}", "dim")
-        self._start_agent(session_id, api_url, block, admin_email)
+        
+        # Resolve the code to find if there is an exam_url attached
+        thread = threading.Thread(target=self._resolve_and_start, args=(session_id, api_url, block, admin_email))
+        thread.daemon = True
+        thread.start()
 
-    def _start_agent(self, session_id, api_url, block, admin_email):
-        self._agent = AgentCore(session_id, api_url, block, admin_email,
+    def _resolve_and_start(self, session_id, api_url, block, admin_email):
+        """Fetch exam details (like URL) from backend before starting agent."""
+        exam_url = ''
+        try:
+            r = httpx.get(f"{api_url}/api/native-agent/resolve-code/{session_id}")
+            if r.status_code == 200:
+                data = r.json()
+                if data.get('status') == 'ok':
+                    exam_url = data.get('exam_url', '')
+                    if exam_url:
+                        self.after(0, lambda: self._append_log(f"Target Exam: {exam_url}", "ok"))
+        except: pass
+        
+        self.after(0, lambda: self._start_agent(session_id, api_url, block, admin_email, exam_url))
+
+    def _start_agent(self, session_id, api_url, block, admin_email, exam_url=''):
+        self._agent = AgentCore(session_id, api_url, block, admin_email, exam_url,
                                 on_status=self._on_status,
                                 on_finding=self._on_finding,
                                 on_heartbeat=self._on_heartbeat)

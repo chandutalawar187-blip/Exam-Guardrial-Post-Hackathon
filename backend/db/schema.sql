@@ -171,8 +171,9 @@ CREATE INDEX IF NOT EXISTS idx_tokens_student_exam ON exam_tokens(student_id, ex
 DROP TABLE IF EXISTS agent_heartbeats CASCADE;
 CREATE TABLE IF NOT EXISTS agent_heartbeats (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  session_id    TEXT UNIQUE NOT NULL,          -- exam code, e.g. "ABC-123"
+  session_id    TEXT UNIQUE NOT NULL,          -- exam code
   platform      TEXT DEFAULT '',
+  exam_url      TEXT DEFAULT '',
   stats         JSONB DEFAULT '{}',
   last_seen     TIMESTAMPTZ DEFAULT NOW(),
   created_at    TIMESTAMPTZ DEFAULT NOW()
@@ -213,6 +214,7 @@ CREATE TABLE IF NOT EXISTS agent_codes (
   session_id    TEXT NOT NULL,                     -- exam session UUID (as text for flexibility)
   student_name  TEXT DEFAULT '',
   exam_name     TEXT DEFAULT '',
+  exam_url      TEXT DEFAULT '',
   admin_email   TEXT DEFAULT '',                   -- admin email for reports
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );

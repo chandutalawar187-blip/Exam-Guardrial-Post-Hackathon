@@ -10,6 +10,7 @@ import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminStudentsPage from './pages/admin/AdminStudentsPage';
 import AdminExamsPage from './pages/admin/AdminExamsPage';
 import StudentWaitingRoom from './pages/student/StudentWaitingRoom';
+import UniversalLandingPage from './pages/student/UniversalLandingPage';
 import ExamRoomPage from './pages/student/ExamRoomPage';
 import ExamSubmittedPage from './pages/student/ExamSubmittedPage';
 
@@ -59,6 +60,9 @@ function AppRouter() {
           <Route path="/exam/submitted" element={
             <ProtectedRoute allowedRole="student"><ExamSubmittedPage /></ProtectedRoute>
           } />
+
+          {/* Universal Agent/Link Route (Public) */}
+          <Route path="/secure" element={<UniversalLandingPage />} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
