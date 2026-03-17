@@ -10,7 +10,7 @@ pip install pyinstaller
 
 echo.
 echo Building ExamGuardrailAgent.exe...
-pyinstaller ^
+python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "ExamGuardrailAgent" ^
@@ -19,7 +19,8 @@ pyinstaller ^
     --hidden-import httpx ^
     --hidden-import pystray ^
     --hidden-import PIL ^
-    guardrail_agent.py
+    --hidden-import tkinter ^
+    guardrail_app.py
 
 echo.
 echo ============================================================

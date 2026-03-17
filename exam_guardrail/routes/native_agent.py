@@ -158,3 +158,60 @@ async def restore_blocked_extensions():
     from exam_guardrail.services.scanners.extension_detector import restore_extensions
     restored = restore_extensions()
     return {'status': 'ok', 'restored_count': restored}
+
+
+@router.get('/findings')
+async def get_agent_findings(session_id: Optional[str] = None, limit: int = 200):
+    """
+    Return native agent events (threats detected/blocked by the desktop app).
+    Optionally filter by session_id.
+    """
+    try:
+        db = get_db()
+        # Native agent events are stored in the events table with layer=L4
+        # they come from AI_AGENT_DETECTED, HIDDEN_WINDOW_WDA, etc.
+        NATIVE_EVENT_TYPES = {
+            'AI_AGENT_DETECTED', 'AI_AGENT_BLOCKED', 'AI_CMDLINE_DETECTED',
+            'AI_API_CONNECTION', 'HIDDEN_WINDOW_WDA', 'HIDDEN_WINDOW_MACOS',
+            'SUSPICIOUS_ELECTRON_APP', 'SCREEN_SHARE_DETECTED', 'SCREEN_SHARE_BLOCKED',
+            'REMOTE_ACCESS_DETECTED', 'REMOTE_ACCESS_BLOCKED',
+            'SCREEN_RECORDER_DETECTED', 'SCREEN_RECORDER_BLOCKED',
+            'CHEAT_EXTENSION_DETECTED', 'CHEAT_EXTENSION_BLOCKED',
+        }
+
+        query = db.table('events').select('*').in_('event_type', list(NATIVE_EVENT_TYPES))
+        if session_id:
+            query = query.eq('session_id', session_id)
+        result = query.order('created_at', desc=True).limit(limit).execute()
+        return {'status': 'ok', 'count': len(result.data or []), 'findings': result.data or []}
+    except Exception as e:
+        import logging
+        logging.getLogger('exam_guardrail.native_agent').warning(f'Findings fetch failed: {e}')
+        return {'status': 'error', 'count': 0, 'findings': [], 'error': str(e)}
+
+
+@router.get('/all-heartbeats')
+async def get_all_heartbeats():
+    """Return all agent heartbeats (for admin overview)."""
+    try:
+        db = get_db()
+        result = db.table('agent_heartbeats').select('*') \
+            .order('last_seen', desc=True).execute()
+        now = datetime.datetime.now(datetime.timezone.utc)
+        rows = []
+        for row in (result.data or []):
+            last_seen_str = row.get('last_seen', '')
+            connected = False
+            age = None
+            if last_seen_str:
+                try:
+                    last_seen = datetime.datetime.fromisoformat(last_seen_str.replace('Z', '+00:00'))
+                    age = int((now - last_seen).total_seconds())
+                    connected = age <= HEARTBEAT_TTL_SECONDS
+                except Exception:
+                    pass
+            rows.append({**row, 'connected': connected, 'age_seconds': age})
+        return {'status': 'ok', 'count': len(rows), 'agents': rows}
+    except Exception as e:
+        return {'status': 'error', 'count': 0, 'agents': [], 'error': str(e)}
+

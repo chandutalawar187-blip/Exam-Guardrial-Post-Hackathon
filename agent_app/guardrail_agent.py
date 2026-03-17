@@ -36,21 +36,55 @@ for _p in [_here, _project_root]:
 try:
     import httpx
 except ImportError:
-    print("ERROR: httpx is required. Run: pip install httpx")
-    sys.exit(1)
+    httpx = None
 
 try:
     import psutil
 except ImportError:
-    print("ERROR: psutil is required. Run: pip install psutil")
-    sys.exit(1)
+    psutil = None
+
+# ---------------------------------------------------------------------------
+# Logging — redirect to a file when running as a windowed .exe (stdout=None)
+# ---------------------------------------------------------------------------
+_IS_WINDOWED = (sys.stdout is None)  # True when built with PyInstaller --windowed
+
+_log_handlers = []
+if not _IS_WINDOWED:
+    _log_handlers.append(logging.StreamHandler(sys.stdout))
+
+# Always log to a file in the user's home directory
+_log_file = os.path.join(os.path.expanduser("~"), "ExamGuardrailAgent.log")
+try:
+    _log_handlers.append(logging.FileHandler(_log_file, encoding="utf-8"))
+except Exception:
+    pass
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
+    handlers=_log_handlers,
 )
 log = logging.getLogger("guardrail_agent")
+
+
+def _print(msg: str):
+    """Safe print — no-op when stdout is None (windowed exe)."""
+    if sys.stdout is not None:
+        try:
+            print(msg)
+        except Exception:
+            pass
+    log.info(msg.strip())
+
+
+if httpx is None:
+    log.error("httpx is required. Run: pip install httpx")
+    sys.exit(1)
+
+if psutil is None:
+    log.error("psutil is required. Run: pip install psutil")
+    sys.exit(1)
 
 # ---------------------------------------------------------------------------
 # Try to import scanner modules from the installed/local exam_guardrail pkg
@@ -92,14 +126,14 @@ class DesktopAgent:
         log.info(f"Agent started | session={self.session_id} | api={self.api_base}")
         log.info(f"Platform: {platform.system()} {platform.release()}")
         log.info(f"Block mode: {'ON' if self.block else 'OFF (detect only)'}")
-        print("\n" + "=" * 60)
-        print("  ExamGuardrail Agent — RUNNING")
-        print(f"  Session : {self.session_id}")
-        print(f"  API     : {self.api_base}")
-        print(f"  Block   : {'ON' if self.block else 'DETECT ONLY'}")
-        print("=" * 60)
-        print("  Keep this window open during the exam.")
-        print("  Press Ctrl+C to stop.\n")
+        _print("\n" + "=" * 60)
+        _print("  ExamGuardrail Agent — RUNNING")
+        _print(f"  Session : {self.session_id}")
+        _print(f"  API     : {self.api_base}")
+        _print(f"  Block   : {'ON' if self.block else 'DETECT ONLY'}")
+        _print("=" * 60)
+        _print("  Keep this window open during the exam.")
+        _print("  Press Ctrl+C to stop.\n")
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             # Register with backend immediately
@@ -298,7 +332,9 @@ def main():
     # Resolve session ID
     session_id = args.session_id
     if not session_id:
-        if sys.stdout.isatty():
+        # Use GUI dialog when: running as windowed exe (stdout=None) or not in a real terminal
+        has_tty = sys.stdout is not None and hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+        if has_tty:
             session_id = prompt_session_id_terminal()
         else:
             session_id = prompt_session_id_gui()
