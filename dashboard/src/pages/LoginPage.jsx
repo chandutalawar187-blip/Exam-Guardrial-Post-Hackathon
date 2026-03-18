@@ -1,6 +1,6 @@
 // dashboard/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../config';
 import logoDark from '../assets/logo/Cognivigil_logo_full_dark.svg';
@@ -85,6 +85,13 @@ export default function LoginPage() {
             <FeaturePill text="🧠 AI Monitoring" />
             <FeaturePill text="📊 Instant Reports" />
           </div>
+          <Link
+            to="/download"
+            className="mt-10 inline-flex items-center gap-2 px-8 py-3 rounded-full bg-gradient-to-r from-[#4E8EA2] to-[#7BBDE8] text-white font-bold text-sm tracking-wide shadow-xl shadow-[#4E8EA2]/30 hover:shadow-[#4E8EA2]/50 hover:scale-105 active:scale-95 transition-all duration-300"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Download Desktop Agent
+          </Link>
         </div>
       </div>
 
@@ -192,8 +199,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <footer className="mt-12 text-center text-[#6EA2B3] font-body text-[12px] font-body font-normal tracking-wide">
-            COGNIVIGIL V2.0 — SECURE EXAM PLATFORM
+          <footer className="mt-12 text-center">
+            <p className="text-[#6EA2B3] font-body text-[12px] font-body font-normal tracking-wide mb-3">
+              COGNIVIGIL V2.0 — SECURE EXAM PLATFORM
+            </p>
+            <Link
+              to="/download"
+              className="inline-flex items-center gap-1.5 text-[#4E8EA2] text-[13px] font-semibold hover:text-[#7BBDE8] transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              Download Desktop Agent →
+            </Link>
           </footer>
         </div>
       </div>
