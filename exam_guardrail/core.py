@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from exam_guardrail.config import GuardrailConfig, set_config
 from exam_guardrail.middleware import NativeAgentMiddleware
-from exam_guardrail.routes import auth, events, sessions, submissions, students, questions, exams, reports, native_agent
+from exam_guardrail.routes import auth, events, sessions, submissions, students, questions, exams, reports, native_agent, downloads
 
 
 def init_guardrail(app: FastAPI, config: GuardrailConfig = None):
@@ -52,6 +52,9 @@ def init_guardrail(app: FastAPI, config: GuardrailConfig = None):
     app.include_router(events.router)
     app.include_router(sessions.router)
     app.include_router(native_agent.router)
+
+    # Downloads (public — serves installers directly)
+    app.include_router(downloads.router)
 
     if not config.monitoring_only:
         app.include_router(auth.router)

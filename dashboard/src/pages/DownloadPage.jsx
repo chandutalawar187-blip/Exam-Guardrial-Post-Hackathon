@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-// GitHub release download URLs
-const GITHUB_REPO = 'chandutalawar187/Exam-Guardrial-Post-Hackathon';
+// Direct download via our backend API — no GitHub redirect
+const API_BASE = import.meta.env.VITE_API_URL || '';
 const RELEASE_TAG = 'v1.2.0';
 const DOWNLOADS = {
-  windows: `https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/ExamGuardrailSetup.exe`,
-  macos: `https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/ExamGuardrailSetup-macOS.dmg`,
-  linux: `https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/ExamGuardrailSetup-Linux.deb`,
+  windows: `${API_BASE}/api/downloads/windows`,
+  macos: `${API_BASE}/api/downloads/macos`,
+  linux: `${API_BASE}/api/downloads/linux`,
 };
 
 const FEATURES = [

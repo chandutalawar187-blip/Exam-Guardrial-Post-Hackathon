@@ -1,0 +1,5 @@
+ExamGuardrailSetup.exe
+*.exe
+agent_app/ExamGuardrailSetup.exe
+agent_app/dist/
+*.exe
