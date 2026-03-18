@@ -230,7 +230,7 @@ jobs:
 
       - name: Create Supabase Storage bucket
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/bucket" \
+          curl -s -f -S -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/bucket" \
             -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/json" \
@@ -238,7 +238,7 @@ jobs:
 
       - name: Upload Windows installer
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup.exe" \
+          curl -f -S -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup.exe" \
             -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/vnd.microsoft.portable-executable" \
@@ -247,7 +247,7 @@ jobs:
 
       - name: Upload macOS installer
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup-macOS.dmg" \
+          curl -f -S -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup-macOS.dmg" \
             -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/x-apple-diskimage" \
@@ -256,7 +256,7 @@ jobs:
 
       - name: Upload Linux installer
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup-Linux.deb" \
+          curl -f -S -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/downloads/ExamGuardrailSetup-Linux.deb" \
             -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/vnd.debian.binary-package" \
