@@ -311,7 +311,7 @@ export default function DownloadPage() {
           <p className="text-sm text-[#49769F]">© 2026 ExamGuardrail — Cognivigil Secure Exam Platform</p>
           <div className="flex items-center gap-6 text-sm text-[#49769F]">
             <Link to="/" className="hover:text-[#7BBDE8] transition-colors">Login</Link>
-            <a href={`https://github.com/${GITHUB_REPO}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#7BBDE8] transition-colors">GitHub</a>
+            <a href="https://github.com/chandutalawar187/Exam-Guardrial-Post-Hackathon" target="_blank" rel="noopener noreferrer" className="hover:text-[#7BBDE8] transition-colors">GitHub</a>
           </div>
         </div>
       </footer>
