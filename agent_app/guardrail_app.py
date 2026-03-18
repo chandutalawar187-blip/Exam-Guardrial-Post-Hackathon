@@ -177,14 +177,46 @@ class AgentCore:
         self._running = False
 
 
+# ── UI COMPONENTS ────────────────────────────────────────────────────────────
+class ScrollableFrame(tk.Frame):
+    """A professional scrollable container for fluid layouts."""
+    def __init__(self, parent, bg=C["bg"], **kwargs):
+        super().__init__(parent, bg=bg, **kwargs)
+        self.canvas = tk.Canvas(self, bg=bg, highlightthickness=0, borderwidth=0)
+        self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollable_content = tk.Frame(self.canvas, bg=bg)
+
+        self.scrollable_content.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_content, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        
+        # Mouse wheel support
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def _on_canvas_configure(self, event):
+        # Update width of scrollable_content to match canvas width
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+
 # ── WIZARD WINDOW ────────────────────────────────────────────────────────────
 class InstallWizard(tk.Toplevel):
     def __init__(self, parent, on_complete):
         super().__init__(parent)
         self.on_complete = on_complete
         self.title("ExamGuardrail Setup")
-        self.geometry("520x480")
-        self.resizable(False, False)
+        self.geometry("540x520")
+        self.resizable(True, True) # Now resizable
         self.configure(bg=C["bg"])
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
         self._center()
@@ -201,17 +233,20 @@ class InstallWizard(tk.Toplevel):
     def _center(self):
         self.update_idletasks()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        x, y = (sw - 520) // 2, (sh - 480) // 2
-        self.geometry(f"520x480+{x}+{y}")
+        x, y = (sw - 540) // 2, (sh - 520) // 2
+        self.geometry(f"540x520+{x}+{y}")
 
     def _on_cancel(self):
         self.destroy()
         sys.exit(0)
 
     def _build(self):
-        # Header
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Header (Fluid)
         hdr = tk.Frame(self, bg=C["surface"], height=90)
-        hdr.pack(fill="x")
+        hdr.grid(row=0, column=0, sticky="ew")
         hdr.pack_propagate(False)
         tk.Label(hdr, text="G", font=("Arial", 28, "bold"), bg=C["accent"], fg=C["white"],
                  width=2).pack(side="left", padx=20, pady=18)
@@ -222,13 +257,18 @@ class InstallWizard(tk.Toplevel):
         tk.Label(info, text="Setup Wizard", font=("Arial", 11),
                  bg=C["surface"], fg=C["text_dim"]).pack(anchor="w")
 
+        # Content area (Scrollable)
+        self._scroll = ScrollableFrame(self)
+        self._scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self._content = self._scroll.scrollable_content
+
         # Step indicator
         self._step_bar = tk.Frame(self, bg=C["bg"])
-        self._step_bar.pack(fill="x", padx=30, pady=(14, 0))
+        self._step_bar.grid(row=2, column=0, sticky="ew", padx=30, pady=(0, 10))
 
-        # Footer nav — MUST pack before content (side="bottom" requires earlier pack order)
+        # Footer nav (Fixed/Bottom)
         nav = tk.Frame(self, bg=C["surface"], height=60)
-        nav.pack(fill="x", side="bottom")
+        nav.grid(row=3, column=0, sticky="ew")
         nav.pack_propagate(False)
         self._btn_back = tk.Button(nav, text="← Back", command=self._prev,
                                    font=("Arial", 11), bg=C["card"], fg=C["text_dim"],
@@ -238,10 +278,6 @@ class InstallWizard(tk.Toplevel):
                                    font=("Arial", 11, "bold"), bg=C["accent"], fg=C["white"],
                                    relief="flat", padx=20, cursor="hand2")
         self._btn_next.pack(side="right", padx=20, pady=12)
-
-        # Content area — packed AFTER footer so expand=True doesn't steal footer space
-        self._content = tk.Frame(self, bg=C["bg"])
-        self._content.pack(fill="both", expand=True, padx=30, pady=10)
 
 
     def _show_step(self, step):
@@ -257,7 +293,7 @@ class InstallWizard(tk.Toplevel):
                      bg=C["bg"], fg=dot_color).pack(side="left")
             if i < len(steps) - 1:
                 tk.Label(self._step_bar, text="──", font=("Arial", 10),
-                         bg=C["bg"], fg=C["border"]).pack(side="left")
+                         bg=C["bg"], fg=C["border"]).pack(side="left", expand=True, fill="x")
 
         self._btn_back.configure(state="normal" if step > 0 else "disabled")
         self._btn_next.configure(text="Launch Agent" if step == 3 else "Next →")
@@ -404,8 +440,9 @@ class GuardrailApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("ExamGuardrail Agent")
-        self.geometry("640x560")
+        self.geometry("680x600")
         self.minsize(580, 500)
+        self.resizable(True, True)
         self.configure(bg=C["bg"])
         self._agent = None
         self._loop = None
@@ -420,20 +457,34 @@ class GuardrailApp(tk.Tk):
         self._heartbeat_ok = True
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
+        self._set_icon()
         self._center()
         # Start wizard after window shown
         self.after(200, self._launch_wizard)
 
+    def _set_icon(self):
+        """Set the window icon if available."""
+        icon_path = os.path.join(_here, "icon.png")
+        if os.path.exists(icon_path):
+            try:
+                img = tk.PhotoImage(file=icon_path)
+                self.iconphoto(True, img)
+            except Exception as e:
+                logging.warning(f"Failed to set icon: {e}")
+
     def _center(self):
         self.update_idletasks()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        x, y = (sw - 640) // 2, (sh - 560) // 2
-        self.geometry(f"640x560+{x}+{y}")
+        x, y = (sw - 680) // 2, (sh - 600) // 2
+        self.geometry(f"680x600+{x}+{y}")
 
     def _build_ui(self):
-        # ── Header
-        hdr = tk.Frame(self, bg=C["surface"])
-        hdr.pack(fill="x")
+        self.grid_rowconfigure(2, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # ── Header (Fluid height)
+        hdr = tk.Frame(self, bg=C["surface"], pady=15)
+        hdr.grid(row=0, column=0, sticky="ew")
         logo_frame = tk.Frame(hdr, bg=C["accent"], width=52, height=52)
         logo_frame.pack(side="left", padx=(20, 14), pady=14)
         logo_frame.pack_propagate(False)
@@ -452,9 +503,14 @@ class GuardrailApp(tk.Tk):
                               bg=C["surface"], fg=C["text_dim"])
         self._dot.pack(side="right", padx=20)
 
+        # ── Scrollable Body
+        self._main_scroll = ScrollableFrame(self)
+        self._main_scroll.grid(row=1, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
+        body = self._main_scroll.scrollable_content
+
         # ── Status card
-        sc = tk.Frame(self, bg=C["card"], pady=18, padx=20)
-        sc.pack(fill="x", padx=20, pady=12)
+        sc = tk.Frame(body, bg=C["card"], pady=18, padx=20)
+        sc.pack(fill="x", padx=10, pady=12)
         # row 1
         r1 = tk.Frame(sc, bg=C["card"])
         r1.pack(fill="x")
@@ -470,8 +526,8 @@ class GuardrailApp(tk.Tk):
         self._session_lbl.pack(anchor="w", pady=(4, 0))
 
         # ── Stats bar
-        sb = tk.Frame(self, bg=C["surface"])
-        sb.pack(fill="x", padx=20)
+        sb = tk.Frame(body, bg=C["surface"])
+        sb.pack(fill="x", padx=10)
         self._stat_labels = {}
         for key, icon, label in [("scans", "🔍", "Scans"), ("findings", "⚠️", "Threats"),
                                    ("blocked", "🚫", "Blocked"), ("heartbeats", "💓", "Heartbeats")]:
@@ -486,10 +542,10 @@ class GuardrailApp(tk.Tk):
             self._stat_labels[key] = vl
 
         # ── Findings feed
-        tk.Label(self, text="DETECTION LOG", font=("Arial", 8, "bold"),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", padx=22, pady=(10, 2))
-        feed_frame = tk.Frame(self, bg=C["bg"])
-        feed_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        tk.Label(body, text="DETECTION LOG", font=("Arial", 8, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", padx=12, pady=(10, 2))
+        feed_frame = tk.Frame(body, bg=C["bg"])
+        feed_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         scrollbar = tk.Scrollbar(feed_frame, bg=C["border"], troughcolor=C["bg"])
         scrollbar.pack(side="right", fill="y")
@@ -508,9 +564,9 @@ class GuardrailApp(tk.Tk):
         self._feed.tag_configure("dim", foreground=C["text_dim"])
         self._append_log("Agent initialized. Waiting for session setup...", "dim")
 
-        # ── Bottom bar
+        # ── Bottom bar (Fixed)
         bot = tk.Frame(self, bg=C["surface"], height=46)
-        bot.pack(fill="x", side="bottom")
+        bot.grid(row=3, column=0, sticky="ew")
         bot.pack_propagate(False)
         self._stop_btn = tk.Button(bot, text="Stop Agent", command=self._stop_agent,
                                    font=("Arial", 10, "bold"), bg=C["red"], fg=C["white"],
@@ -529,6 +585,13 @@ class GuardrailApp(tk.Tk):
 
     def _launch_wizard(self):
         wiz = InstallWizard(self, self._on_wizard_complete)
+        # Attempt to set wizard icon too
+        icon_path = os.path.join(_here, "icon.png")
+        if os.path.exists(icon_path):
+            try:
+                img = tk.PhotoImage(file=icon_path)
+                wiz.iconphoto(True, img)
+            except: pass
         wiz.show()
 
     def _on_wizard_complete(self, session_id, api_url, block, student_name, admin_email, exam_url):
