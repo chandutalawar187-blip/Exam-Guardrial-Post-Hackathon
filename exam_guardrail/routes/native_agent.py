@@ -19,6 +19,8 @@ HEARTBEAT_TTL_SECONDS = 30
 
 class HeartbeatPayload(BaseModel):
     session_id: str
+    student_name: str = ''
+    admin_email: str = ''
     platform: str = ''
     exam_url: str = ''
     timestamp: str = ''
@@ -115,6 +117,8 @@ async def agent_heartbeat(payload: HeartbeatPayload):
         db = get_db()
         db.table('agent_heartbeats').upsert({
             'session_id': payload.session_id,
+            'student_name': payload.student_name,
+            'admin_email': payload.admin_email,
             'platform': payload.platform,
             'exam_url': payload.exam_url,
             'stats': payload.stats or {},

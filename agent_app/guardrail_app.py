@@ -14,7 +14,9 @@ import platform
 import datetime
 import logging
 import tkinter as tk
-from tkinter import font as tkfont
+from tkinter import font as tkfont, messagebox
+import random
+import string
 import time
 import webbrowser # Added by user instruction
 import httpx      # Moved from try/except block by user instruction
@@ -78,10 +80,11 @@ C = {
 
 # ── AGENT LOGIC ─────────────────────────────────────────────────────────────
 class AgentCore:
-    def __init__(self, session_id, api_url, block=True, admin_email='', exam_url='', on_status=None, on_finding=None, on_heartbeat=None):
+    def __init__(self, session_id, api_url, block=True, student_name='', admin_email='', exam_url='', on_status=None, on_finding=None, on_heartbeat=None):
         self.session_id = session_id
         self.api_base = api_url.rstrip("/")
         self.block = block
+        self.student_name = student_name
         self.admin_email = admin_email
         self.exam_url = exam_url
         self.on_status = on_status or (lambda s: None)
@@ -126,6 +129,8 @@ class AgentCore:
         try:
             r = await client.post(f"{self.api_base}/api/native-agent/heartbeat", json={
                 "session_id": self.session_id,
+                "student_name": self.student_name,
+                "admin_email": self.admin_email,
                 "platform": f"{platform.system()} {platform.release()}",
                 "exam_url": self.exam_url,
                 "timestamp": datetime.datetime.utcnow().isoformat(),
@@ -185,7 +190,9 @@ class InstallWizard(tk.Toplevel):
         self._center()
         self._step = 0
         self._session_var = tk.StringVar()
+        self._url_var = tk.StringVar()
         self._api_var = tk.StringVar(value=DEFAULT_API_URL)
+        self._student_name_var = tk.StringVar()
         self._admin_email_var = tk.StringVar()
         self._block_var = tk.BooleanVar(value=True)
         self._build()
@@ -280,19 +287,26 @@ class InstallWizard(tk.Toplevel):
         f = self._content
         tk.Label(f, text="🔑  Session Code", font=("Arial", 18, "bold"),
                  bg=C["bg"], fg=C["white"]).pack(anchor="w", pady=(10, 6))
-        tk.Label(f, text="Enter the exam session code provided by your instructor.\n"
-                          "This links your agent to your exam session.",
+        tk.Label(f, text="Enter the exam session code from your instructor OR\n"
+                          "paste the direct link to your exam (HackerRank, etc.)",
                  font=("Arial", 11), bg=C["bg"], fg=C["text"], justify="left",
                  wraplength=440).pack(anchor="w", pady=(0, 20))
+        
         tk.Label(f, text="SESSION CODE", font=("Arial", 9, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
         entry = tk.Entry(f, textvariable=self._session_var, font=("Courier", 16, "bold"),
                          bg=C["card"], fg=C["accent2"], insertbackground=C["white"],
                          relief="flat", bd=12, width=24)
-        entry.pack(fill="x", ipady=10, pady=4)
+        entry.pack(fill="x", ipady=6, pady=(4, 12))
         entry.focus()
-        tk.Label(f, text="Example: ABC-12345  •  Case insensitive", font=("Arial", 9),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
+
+        tk.Label(f, text="OR PASTE EXAM URL", font=("Arial", 9, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
+        tk.Entry(f, textvariable=self._url_var, font=("Arial", 10),
+                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
+                 relief="flat", bd=10).pack(fill="x", ipady=6, pady=4)
+        tk.Label(f, text="Example: https://hackerrank.com/test-1", font=("Arial", 9),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(0, 4))
 
     def _step_settings(self):
         f = self._content
@@ -305,6 +319,12 @@ class InstallWizard(tk.Toplevel):
                  relief="flat", bd=10).pack(fill="x", ipady=6)
         tk.Label(f, text="Leave default unless your instructor specified a different URL.",
                  font=("Arial", 9), bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
+
+        tk.Label(f, text="YOUR FULL NAME", font=("Arial", 9, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
+        tk.Entry(f, textvariable=self._student_name_var, font=("Arial", 10),
+                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
+                 relief="flat", bd=10).pack(fill="x", ipady=6)
 
         tk.Label(f, text="ADMIN EMAIL (Optional)", font=("Arial", 9, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
@@ -346,15 +366,25 @@ class InstallWizard(tk.Toplevel):
                      fg=C["accent2"]).pack(side="left")
 
     def _next(self):
-        if self._step == 1 and not self._session_var.get().strip():
-            tk.messagebox.showerror("Required", "Please enter your session code.", parent=self)
-            return
+        if self._step == 1:
+            sid = self._session_var.get().strip()
+            url = self._url_var.get().strip()
+            if not sid and not url:
+                messagebox.showwarning("Input Required", "Please enter a Session Code OR an Exam URL.")
+                return
+            if not sid:
+                # Generate ad-hoc ID for link-only mode
+                sid = "LIVE-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                self._session_var.set(sid)
+
         if self._step == 3:
             self.destroy()
             self.on_complete(self._session_var.get().strip().upper(),
                              self._api_var.get().strip(), 
                              self._block_var.get(),
-                             self._admin_email_var.get().strip())
+                             self._student_name_var.get().strip(),
+                             self._admin_email_var.get().strip(),
+                             self._url_var.get().strip())
             return
         self._step += 1
         self._show_step(self._step)
@@ -380,6 +410,12 @@ class GuardrailApp(tk.Tk):
         self._agent = None
         self._loop = None
         self._thread = None
+        self._session_id = None
+        self._api_url = None
+        self._block = True
+        self._student_name = ""
+        self._admin_email = ""
+        self._exam_url = ""
         self._findings = []
         self._heartbeat_ok = True
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -495,24 +531,33 @@ class GuardrailApp(tk.Tk):
         wiz = InstallWizard(self, self._on_wizard_complete)
         wiz.show()
 
-    def _on_wizard_complete(self, session_id, api_url, block, admin_email):
+    def _on_wizard_complete(self, session_id, api_url, block, student_name, admin_email, exam_url):
         self._session_id = session_id
         self._api_url = api_url
         self._block = block
+        self._student_name = student_name
         self._admin_email = admin_email
+        self._exam_url = exam_url
         self._subtitle.configure(text=f"Session: {session_id}")
         self._session_lbl.configure(text=f"API: {api_url}")
         self._status_lbl.configure(text="Starting agent...", fg=C["amber"])
         self._dot.configure(fg=C["amber"])
         self._append_log(f"Session code: {session_id}", "ok")
+        if student_name:
+            self._append_log(f"Student: {student_name}", "ok")
+        if exam_url:
+            self._append_log(f"Exam Link: {exam_url}", "ok")
         self._append_log(f"API: {api_url}", "dim")
         
-        # Resolve the code to find if there is an exam_url attached
-        thread = threading.Thread(target=self._resolve_and_start, args=(session_id, api_url, block, admin_email))
-        thread.daemon = True
-        thread.start()
+        # Resolve the code to find if there is an exam_url attached (if not already provided)
+        if not exam_url:
+            thread = threading.Thread(target=self._resolve_and_start, args=(session_id, api_url, block, student_name, admin_email))
+            thread.daemon = True
+            thread.start()
+        else:
+            self._start_agent(session_id, api_url, block, student_name, admin_email, exam_url)
 
-    def _resolve_and_start(self, session_id, api_url, block, admin_email):
+    def _resolve_and_start(self, session_id, api_url, block, student_name, admin_email):
         """Fetch exam details (like URL) from backend before starting agent."""
         exam_url = ''
         try:
@@ -525,10 +570,10 @@ class GuardrailApp(tk.Tk):
                         self.after(0, lambda: self._append_log(f"Target Exam: {exam_url}", "ok"))
         except: pass
         
-        self.after(0, lambda: self._start_agent(session_id, api_url, block, admin_email, exam_url))
+        self.after(0, lambda: self._start_agent(session_id, api_url, block, student_name, admin_email, exam_url))
 
-    def _start_agent(self, session_id, api_url, block, admin_email, exam_url=''):
-        self._agent = AgentCore(session_id, api_url, block, admin_email, exam_url,
+    def _start_agent(self, session_id, api_url, block, student_name, admin_email, exam_url=''):
+        self._agent = AgentCore(session_id, api_url, block, student_name, admin_email, exam_url,
                                 on_status=self._on_status,
                                 on_finding=self._on_finding,
                                 on_heartbeat=self._on_heartbeat)

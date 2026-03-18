@@ -172,6 +172,8 @@ DROP TABLE IF EXISTS agent_heartbeats CASCADE;
 CREATE TABLE IF NOT EXISTS agent_heartbeats (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id    TEXT UNIQUE NOT NULL,          -- exam code
+  student_name  TEXT DEFAULT '',
+  admin_email   TEXT DEFAULT '',
   platform      TEXT DEFAULT '',
   exam_url      TEXT DEFAULT '',
   stats         JSONB DEFAULT '{}',
