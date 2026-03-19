@@ -140,7 +140,7 @@ jobs:
       - name: Create .deb package
         working-directory: agent_app
         run: |
-          PKG_DIR=examguardrail_1.2.0-1_amd64
+          PKG_DIR=examguardrail_1.3.2-1_amd64
           mkdir -p $PKG_DIR/DEBIAN
           mkdir -p $PKG_DIR/usr/local/bin
           mkdir -p $PKG_DIR/usr/share/applications
@@ -149,7 +149,7 @@ jobs:
           # Control file
           cat > $PKG_DIR/DEBIAN/control << 'EOF'
           Package: examguardrail
-          Version: 1.2.0
+          Version: 1.3.2
           Section: utils
           Priority: optional
           Architecture: amd64

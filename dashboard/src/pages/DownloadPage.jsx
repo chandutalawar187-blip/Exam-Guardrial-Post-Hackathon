@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 // Direct download via our backend API — no GitHub redirect
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const RELEASE_TAG = 'v1.2.0';
+const RELEASE_TAG = 'v1.3.2';
 const DOWNLOADS = {
   windows: `${API_BASE}/api/downloads/windows`,
   macos: `${API_BASE}/api/downloads/macos`,
@@ -25,7 +25,7 @@ const OS_CARDS = [
     id: 'windows',
     name: 'Windows',
     icon: (
-      <svg viewBox="0 0 24 24" className="w-10 h-10" fill="currentColor">
+      <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor">
         <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
       </svg>
     ),
@@ -38,7 +38,7 @@ const OS_CARDS = [
     id: 'macos',
     name: 'macOS',
     icon: (
-      <svg viewBox="0 0 24 24" className="w-10 h-10" fill="currentColor">
+      <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor">
         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
       </svg>
     ),
@@ -51,7 +51,7 @@ const OS_CARDS = [
     id: 'linux',
     name: 'Linux',
     icon: (
-      <svg viewBox="0 0 24 24" className="w-10 h-10" fill="currentColor">
+      <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor">
         <path d="M20.581 19.049c-.55-.446-.336-1.431-.907-1.917.553-3.365-.997-6.331-2.845-8.232-1.551-1.595-1.717-3.063-1.041-5.108.465-1.404-.376-2.18-1.092-1.837-.792.381-1.357 1.481-1.635 2.404-.656 2.183-.164 3.79.896 5.322 1.066 1.541 1.964 3.781 1.731 6.574-.047.571.049 1.146.228 1.679.193.576.476 1.136.853 1.573.207.243.5.439.813.571-1.013.422-2.459.644-4.058.644-1.621 0-3.069-.224-4.074-.65.282-.119.546-.282.754-.493.442-.451.74-1.065.924-1.651.187-.593.26-1.175.238-1.684-.081-1.793.221-3.512.73-4.793.466-1.173 1.104-2.024 1.71-2.86.59-.814.982-1.573 1.14-2.548.213-1.323-.035-2.822-.627-3.813-.335-.559-.858-.824-1.339-.632-.603.242-.952 1.051-1.031 1.859-.072.737.044 1.493.377 2.097.449.814.487 1.652.072 2.711-.537 1.37-1.322 2.632-1.915 4.14-.53 1.354-.822 3.011-.755 4.843.027.726.129 1.414.342 2.04.164.478.396.924.702 1.302.16.198.348.374.558.519-1.06.225-2.271.35-3.577.35-2.236 0-4.147-.526-5.231-1.416-.34-.28-.532-.612-.541-.973-.009-.377.167-.793.52-1.217.353-.424.53-.93.443-1.432-.087-.502-.424-.967-.918-1.157-.488-.19-1.042-.078-1.451.292-.515.465-.841 1.151-.856 1.892-.015.729.247 1.513.81 2.167 1.298 1.508 3.638 2.344 6.568 2.344 5.534 0 9.28-2.069 9.924-3.566l.107-.217c.074-.152.126-.297.163-.439.012-.047.02-.094.027-.14.002-.015.004-.028.005-.042l.005-.04c.012-.108.014-.217.005-.326z"/>
       </svg>
     ),
@@ -191,7 +191,7 @@ export default function DownloadPage() {
               {/* Glass morph background glow */}
               <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-30 transition-opacity duration-700 bg-gradient-to-br ${os.gradient}`} />
 
-              <div className={`mb-4 transition-all duration-300 ${activeOS === os.id ? 'text-[#7BBDE8]' : 'text-[#49769F]'}`}>
+              <div className={`mb-4 w-10 h-10 transition-all duration-300 ${activeOS === os.id ? 'text-[#7BBDE8]' : 'text-[#49769F]'}`}>
                 {os.icon}
               </div>
               <h3 className="text-xl font-bold mb-1">{os.name}</h3>
@@ -297,7 +297,7 @@ export default function DownloadPage() {
                     : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
                   }`}
               >
-                <span className="w-5 h-5">{os.icon}</span>
+                <span className="w-5 h-5 flex items-center justify-center">{os.icon}</span>
                 {os.name}
               </a>
             ))}
