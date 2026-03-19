@@ -3,7 +3,7 @@ name: Build Cross-Platform Installers
 on:
   push:
     tags:
-      - 'v*'       # Trigger on version tags like v1.2.0
+      - 'v*'       # Trigger on version tags like v1.3.5
   workflow_dispatch:  # Allow manual trigger from GitHub UI
 
 permissions:
@@ -29,16 +29,7 @@ jobs:
       - name: Build EXE with PyInstaller
         working-directory: agent_app
         run: |
-          python -m PyInstaller --onefile --windowed --name "ExamGuardrailAgent" `
-            --icon "icon.ico" `
-            --add-data "icon.png;." `
-            --add-data "../exam_guardrail;exam_guardrail" `
-            --hidden-import psutil `
-            --hidden-import httpx `
-            --hidden-import pystray `
-            --hidden-import PIL `
-            --hidden-import tkinter `
-            guardrail_app.py
+          python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
 
       - name: Install Inno Setup
         run: |
@@ -76,15 +67,7 @@ jobs:
       - name: Build .app with PyInstaller
         working-directory: agent_app
         run: |
-          python -m PyInstaller --onefile --windowed --name "ExamGuardrailAgent" \
-            --add-data "icon.png:." \
-            --add-data "../exam_guardrail:exam_guardrail" \
-            --hidden-import psutil \
-            --hidden-import httpx \
-            --hidden-import pystray \
-            --hidden-import PIL \
-            --hidden-import tkinter \
-            guardrail_app.py
+          python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
 
       - name: Create DMG
         working-directory: agent_app
@@ -127,20 +110,12 @@ jobs:
       - name: Build binary with PyInstaller
         working-directory: agent_app
         run: |
-          python -m PyInstaller --onefile --windowed --name "ExamGuardrailAgent" \
-            --add-data "icon.png:." \
-            --add-data "../exam_guardrail:exam_guardrail" \
-            --hidden-import psutil \
-            --hidden-import httpx \
-            --hidden-import pystray \
-            --hidden-import PIL \
-            --hidden-import tkinter \
-            guardrail_app.py
+          python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
 
       - name: Create .deb package
         working-directory: agent_app
         run: |
-          PKG_DIR=examguardrail_1.3.2-1_amd64
+          PKG_DIR=examguardrail_1.3.5-1_amd64
           mkdir -p $PKG_DIR/DEBIAN
           mkdir -p $PKG_DIR/usr/local/bin
           mkdir -p $PKG_DIR/usr/share/applications
@@ -149,7 +124,7 @@ jobs:
           # Control file
           cat > $PKG_DIR/DEBIAN/control << 'EOF'
           Package: examguardrail
-          Version: 1.3.2
+          Version: 1.3.5
           Section: utils
           Priority: optional
           Architecture: amd64

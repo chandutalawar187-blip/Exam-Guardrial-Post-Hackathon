@@ -1,11 +1,15 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+import os
+import sys
 
 a = Analysis(
     ['guardrail_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('icon.png', '.'), ('icon.ico', '.'), ('..\\exam_guardrail', 'exam_guardrail')],
+    datas=[
+        ('icon.png', '.'), 
+        ('icon.ico', '.'), 
+        (os.path.join('..', 'exam_guardrail'), 'exam_guardrail')
+    ],
     hiddenimports=['psutil', 'httpx', 'pystray', 'PIL', 'tkinter'],
     hookspath=[],
     hooksconfig={},
