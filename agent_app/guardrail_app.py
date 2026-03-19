@@ -462,6 +462,11 @@ class GuardrailApp(tk.Tk):
         self._stat_labels = {}
         self._feed = None
         self._main_scroll = None
+        self._scanner_cards = {}
+        self._alert_frame = None
+        self._alert_count = 0
+        self._icon_img = None
+        self._wiz_icon = None
         
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
@@ -471,14 +476,17 @@ class GuardrailApp(tk.Tk):
         self.after(200, self._launch_wizard)
 
     def _set_icon(self):
-        """Set the window icon if available."""
-        icon_path = os.path.join(_here, "icon.png")
-        if os.path.exists(icon_path):
-            try:
-                img = tk.PhotoImage(file=icon_path)
-                self.iconphoto(True, img)
-            except Exception as e:
-                logging.warning(f"Failed to set icon: {e}")
+        """Set the window icon. Uses .ico for Windows title bar, .png as fallback."""
+        ico_path = os.path.join(_here, "icon.ico")
+        png_path = os.path.join(_here, "icon.png")
+        try:
+            if platform.system() == "Windows" and os.path.exists(ico_path):
+                self.iconbitmap(ico_path)
+            elif os.path.exists(png_path):
+                self._icon_img = tk.PhotoImage(file=png_path)
+                self.iconphoto(True, self._icon_img)
+        except Exception as e:
+            logging.warning(f"Failed to set icon: {e}")
 
     def _center(self):
         self.update_idletasks()
@@ -556,28 +564,49 @@ class GuardrailApp(tk.Tk):
                      bg=C["bg"], fg=C["text_dim"]).pack()
             self._stat_labels[key] = vl
 
-        # ── LOG FEED (Editorial style)
-        tk.Label(body, text="SYSTEM JOURNAL", font=("Segoe UI", 7, "bold"),
+        # ── DETECTION STATUS (User-friendly cards instead of raw logs)
+        tk.Label(body, text="DETECTION STATUS", font=("Segoe UI", 7, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="n", pady=(0, 10))
         
-        feed_container = tk.Frame(body, bg=C["bg"], padx=40)
-        feed_container.pack(fill="both", expand=True)
-        
-        feed_frame = tk.Frame(feed_container, bg=C["border"], pady=1)
-        feed_frame.pack(fill="both", expand=True)
+        det_container = tk.Frame(body, bg=C["bg"], padx=40)
+        det_container.pack(fill="both", expand=True)
 
-        self._feed = tk.Text(feed_frame, bg=C["bg"], fg=C["text"],
-                             font=("Consolas", 9), relief="flat", wrap="word",
-                             state="disabled", insertbackground=C["text"], 
-                             padx=15, pady=15, height=12)
-        self._feed.pack(fill="both", expand=True)
+        # Scanner status cards
+        self._scanner_cards = {}
+        scanners = [
+            ("ai_agents",    "AI Agent Detection",     "Scanning for unauthorized AI tools"),
+            ("screen_share", "Screen Sharing",          "Monitoring screen sharing activity"),
+            ("network",      "Network Connections",     "Watching for suspicious connections"),
+            ("processes",    "Process Integrity",       "Verifying running applications"),
+            ("extensions",   "Browser Extensions",      "Checking browser extensions"),
+        ]
+        for key, title, desc in scanners:
+            card = tk.Frame(det_container, bg=C["surface"], pady=12, padx=15)
+            card.pack(fill="x", pady=3)
+            
+            top_row = tk.Frame(card, bg=C["surface"])
+            top_row.pack(fill="x")
+            
+            status_dot = tk.Label(top_row, text="○", font=("Segoe UI", 10),
+                                  bg=C["surface"], fg=C["border"])
+            status_dot.pack(side="left", padx=(0, 8))
+            tk.Label(top_row, text=title.upper(), font=("Segoe UI", 9, "bold"),
+                     bg=C["surface"], fg=C["text"]).pack(side="left")
+            
+            status_text = tk.Label(top_row, text="STANDBY", font=("Segoe UI", 7, "bold"),
+                                   bg=C["surface"], fg=C["border"])
+            status_text.pack(side="right")
+            
+            desc_lbl = tk.Label(card, text=desc, font=("Segoe UI", 8),
+                                bg=C["surface"], fg=C["text_dim"], anchor="w")
+            desc_lbl.pack(fill="x", padx=(22, 0), pady=(2, 0))
+            
+            self._scanner_cards[key] = {"dot": status_dot, "status": status_text, "desc": desc_lbl}
 
-        self._feed.tag_configure("ts", foreground=C["text_dim"])
-        self._feed.tag_configure("ok", foreground=C["text"])
-        self._feed.tag_configure("warn", foreground=C["amber"])
-        self._feed.tag_configure("threat", foreground=C["red"])
-        self._feed.tag_configure("dim", foreground=C["text_dim"])
-        self._append_log("System dormant. Initializing...", "dim")
+        # Threat alerts area
+        self._alert_frame = tk.Frame(det_container, bg=C["bg"])
+        self._alert_frame.pack(fill="x", pady=(10, 0))
+        self._alert_count = 0
 
         # ── BOTTOM BAR (Quiet Luxury)
         bot = tk.Frame(self, bg=C["surface"], height=60)
@@ -596,23 +625,65 @@ class GuardrailApp(tk.Tk):
         tk.Label(bot, text="VERIFIED SECURE ENVIRONMENT", font=("Segoe UI", 7, "bold"), 
                  bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=40)
 
-    def _append_log(self, msg, tag="ok"):
-        self._feed.configure(state="normal")
-        ts = datetime.datetime.now().strftime("%H:%M:%S")
-        self._feed.insert("end", f"[{ts}] ", "ts")
-        self._feed.insert("end", msg + "\n", tag)
-        self._feed.see("end")
-        self._feed.configure(state="disabled")
+    def _update_scanner_status(self, scanner_key, status, color=None):
+        """Update a detection card to show current status."""
+        card = self._scanner_cards.get(scanner_key)
+        if not card:
+            return
+        fg = color or C["text"]
+        if status == "CLEAR":
+            card["dot"].configure(text="●", fg=C["text"])
+            card["status"].configure(text="CLEAR", fg=C["text"])
+        elif status == "SCANNING":
+            card["dot"].configure(text="◉", fg=C["amber"])
+            card["status"].configure(text="SCANNING...", fg=C["amber"])
+        elif status == "THREAT":
+            card["dot"].configure(text="●", fg=C["red"])
+            card["status"].configure(text="THREAT DETECTED", fg=C["red"])
+        elif status == "STANDBY":
+            card["dot"].configure(text="○", fg=C["border"])
+            card["status"].configure(text="STANDBY", fg=C["border"])
+    
+    def _add_alert(self, severity, event_type, reason):
+        """Add a user-friendly alert card for a detected threat."""
+        self._alert_count += 1
+        color = C["red"] if severity in ("CRITICAL", "HIGH") else C["amber"]
+        
+        alert = tk.Frame(self._alert_frame, bg=C["surface"], pady=8, padx=12)
+        alert.pack(fill="x", pady=2)
+        
+        top = tk.Frame(alert, bg=C["surface"])
+        top.pack(fill="x")
+        
+        icon = "⚠" if severity in ("CRITICAL", "HIGH") else "⚡"
+        tk.Label(top, text=icon, font=("Segoe UI", 11), bg=C["surface"], fg=color).pack(side="left", padx=(0, 8))
+        tk.Label(top, text=event_type.replace("_", " ").upper(), font=("Segoe UI", 9, "bold"),
+                 bg=C["surface"], fg=color).pack(side="left")
+        
+        ts = datetime.datetime.now().strftime("%H:%M")
+        tk.Label(top, text=ts, font=("Segoe UI", 7), bg=C["surface"], fg=C["text_dim"]).pack(side="right")
+        
+        if reason:
+            tk.Label(alert, text=reason, font=("Segoe UI", 8),
+                     bg=C["surface"], fg=C["text_dim"], anchor="w", wraplength=400).pack(fill="x", padx=(26, 0), pady=(2, 0))
+        
+        # Keep only last 10 alerts visible
+        children = self._alert_frame.winfo_children()
+        if len(children) > 10:
+            children[0].destroy()
 
     def _launch_wizard(self):
         wiz = InstallWizard(self, self._on_wizard_complete)
-        # Attempt to set wizard icon too
-        icon_path = os.path.join(_here, "icon.png")
-        if os.path.exists(icon_path):
-            try:
-                img = tk.PhotoImage(file=icon_path)
-                wiz.iconphoto(True, img)
-            except: pass
+        # Set wizard icon
+        ico_path = os.path.join(_here, "icon.ico")
+        png_path = os.path.join(_here, "icon.png")
+        try:
+            if platform.system() == "Windows" and os.path.exists(ico_path):
+                wiz.iconbitmap(ico_path)
+            elif os.path.exists(png_path):
+                self._wiz_icon = tk.PhotoImage(file=png_path)
+                wiz.iconphoto(True, self._wiz_icon)
+        except: pass
         wiz.show()
 
     def _on_wizard_complete(self, session_id, api_url, block, student_name, admin_email, exam_url):
@@ -626,12 +697,6 @@ class GuardrailApp(tk.Tk):
         self._session_lbl.configure(text=f"API: {api_url}")
         self._status_lbl.configure(text="Starting agent...", fg=C["amber"])
         self._dot.configure(fg=C["amber"])
-        self._append_log(f"Session code: {session_id}", "ok")
-        if student_name:
-            self._append_log(f"Student: {student_name}", "ok")
-        if exam_url:
-            self._append_log(f"Exam Link: {exam_url}", "ok")
-        self._append_log(f"API: {api_url}", "dim")
         
         # Resolve the code to find if there is an exam_url attached (if not already provided)
         if not exam_url:
@@ -650,8 +715,6 @@ class GuardrailApp(tk.Tk):
                 data = r.json()
                 if data.get('status') == 'ok':
                     exam_url = data.get('exam_url', '')
-                    if exam_url:
-                        self.after(0, lambda: self._append_log(f"Target Exam: {exam_url}", "ok"))
         except: pass
         
         self.after(0, lambda: self._start_agent(session_id, api_url, block, student_name, admin_email, exam_url))
@@ -677,18 +740,26 @@ class GuardrailApp(tk.Tk):
                 self._dot.configure(fg=C["text"])
                 self._status_val.configure(text="MONITORING ACTIVE", fg=C["text"])
                 self._status_lbl.configure(text="SECURE ENVIRONMENT ACTIVE", fg=C["text"])
-                self._append_log("Surveillance established.", "ok")
+                # Activate all scanner cards
+                for key in self._scanner_cards:
+                    self._update_scanner_status(key, "SCANNING")
             else:
                 self._dot.configure(fg=C["text_dim"])
                 self._status_val.configure(text="SESSION ENDED", fg=C["text_dim"])
                 self._status_lbl.configure(text="AGENT STOPPED", fg=C["text_dim"])
-                self._append_log("Monitoring terminated.", "dim")
+                for key in self._scanner_cards:
+                    self._update_scanner_status(key, "STANDBY")
         self.after(0, _upd)
 
     def _on_heartbeat(self, ok):
         def _upd():
             if ok:
                 self._heartbeat_lbl.configure(text="REMOTE LINK ACTIVE", fg=C["text_dim"])
+                # After a successful scan cycle, mark scanners as clear
+                for key in self._scanner_cards:
+                    card = self._scanner_cards[key]
+                    if card["status"].cget("text") == "SCANNING...":
+                        self._update_scanner_status(key, "CLEAR")
             else:
                 self._heartbeat_lbl.configure(text="CONNECTION INTERRUPTED", fg=C["amber"])
         self.after(0, _upd)
@@ -697,9 +768,19 @@ class GuardrailApp(tk.Tk):
         def _upd():
             etype = f.get("event_type", "UNKNOWN")
             sev = f.get("severity", "medium").upper()
-            tag = "threat" if sev in ("CRITICAL", "HIGH") else "warn"
             reason = f.get("metadata", {}).get("reason", "")
-            self._append_log(f"[{sev}] {etype}  {reason}", tag)
+            
+            # Map finding to scanner card
+            scanner_map = {
+                "AI_AGENT": "ai_agents", "AI_NETWORK": "network",
+                "HIDDEN_WINDOW": "ai_agents", "SCREEN_SHARE": "screen_share",
+                "BLOCKED_PROCESS": "processes", "BROWSER_EXTENSION": "extensions",
+            }
+            key = scanner_map.get(etype, "processes")
+            self._update_scanner_status(key, "THREAT")
+            
+            # Add user-friendly alert
+            self._add_alert(sev, etype, reason)
         self.after(0, _upd)
 
     def _update_stats_loop(self):
@@ -712,6 +793,30 @@ class GuardrailApp(tk.Tk):
         if self._agent:
             self._agent.stop()
             self._stop_btn.configure(state="disabled")
+            self._agent = None
+            # Reset UI and re-launch wizard after a brief delay
+            self.after(1500, self._reset_and_relaunch)
+
+    def _reset_and_relaunch(self):
+        """Reset the UI to its initial state and re-open the setup wizard."""
+        self._subtitle.configure(text="SENTINEL STANDBY")
+        self._dot.configure(fg=C["border"])
+        self._status_val.configure(text="LOGGED OUT", fg=C["text_dim"])
+        self._status_lbl.configure(text="WAITING FOR AUTHORIZATION", fg=C["text_dim"])
+        self._session_lbl.configure(text="NO ACTIVE SESSION")
+        self._heartbeat_lbl.configure(text="SYSTEM READY", fg=C["border"])
+        # Reset stats
+        for key, lbl in self._stat_labels.items():
+            lbl.configure(text="0")
+        # Reset scanner cards
+        for key in self._scanner_cards:
+            self._update_scanner_status(key, "STANDBY")
+        # Clear alerts
+        for child in self._alert_frame.winfo_children():
+            child.destroy()
+        self._alert_count = 0
+        # Re-open wizard
+        self._launch_wizard()
 
     def _on_close(self):
         if self._agent:
