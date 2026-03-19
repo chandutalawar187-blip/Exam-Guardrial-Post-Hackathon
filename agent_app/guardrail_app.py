@@ -90,10 +90,10 @@ class AgentCore:
             await self._heartbeat(client)
             counter = 0
             while self._running:
-                await asyncio.sleep(5)
+                await asyncio.sleep(2.5)
                 await self._heartbeat(client)
-                counter += 5
-                if counter >= 10:
+                counter += 2.5
+                if counter >= 5.0:
                     counter = 0
                     await self._scan(client)
         self.on_status("stopped")
@@ -564,21 +564,21 @@ class GuardrailApp(tk.Tk):
                      bg=C["bg"], fg=C["text_dim"]).pack()
             self._stat_labels[key] = vl
 
-        # ── DETECTION STATUS (User-friendly cards instead of raw logs)
-        tk.Label(body, text="DETECTION STATUS", font=("Segoe UI", 7, "bold"),
+        # ── DETECTION STATUS (Stealth mode - no specific threats shown to student)
+        tk.Label(body, text="ENVIRONMENT OPTIMIZATION", font=("Segoe UI", 7, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="n", pady=(0, 10))
         
         det_container = tk.Frame(body, bg=C["bg"], padx=40)
         det_container.pack(fill="both", expand=True)
 
-        # Scanner status cards
+        # Scanner status cards - simplified and stealthy
         self._scanner_cards = {}
         scanners = [
-            ("ai_agents",    "AI Agent Detection",     "Scanning for unauthorized AI tools"),
-            ("screen_share", "Screen Sharing",          "Monitoring screen sharing activity"),
-            ("network",      "Network Connections",     "Watching for suspicious connections"),
-            ("processes",    "Process Integrity",       "Verifying running applications"),
-            ("extensions",   "Browser Extensions",      "Checking browser extensions"),
+            ("ai_agents",    "AI Engine Integrity",     "Verifying system environment"),
+            ("screen_share", "Secure Output Link",      "Optimizing visual rendering"),
+            ("network",      "Remote Connectivity",     "Ensuring stable link integrity"),
+            ("processes",    "Resource Management",     "Allocating system resources"),
+            ("extensions",   "Module Verification",     "Checking core components"),
         ]
         for key, title, desc in scanners:
             card = tk.Frame(det_container, bg=C["surface"], pady=12, padx=15)
@@ -603,9 +603,8 @@ class GuardrailApp(tk.Tk):
             
             self._scanner_cards[key] = {"dot": status_dot, "status": status_text, "desc": desc_lbl}
 
-        # Threat alerts area
+        # Alert frame is hidden in stealth mode
         self._alert_frame = tk.Frame(det_container, bg=C["bg"])
-        self._alert_frame.pack(fill="x", pady=(10, 0))
         self._alert_count = 0
 
         # ── BOTTOM BAR (Quiet Luxury)
@@ -626,51 +625,29 @@ class GuardrailApp(tk.Tk):
                  bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=40)
 
     def _update_scanner_status(self, scanner_key, status, color=None):
-        """Update a detection card to show current status."""
+        """Update a detection card. In stealth mode, we hide THREAT details."""
         card = self._scanner_cards.get(scanner_key)
         if not card:
             return
-        fg = color or C["text"]
+        
+        # Mapping for stealth: THREAT -> SCANNING (keep it professional but vague)
         if status == "CLEAR":
             card["dot"].configure(text="●", fg=C["text"])
-            card["status"].configure(text="CLEAR", fg=C["text"])
+            card["status"].configure(text="OPTIMIZED", fg=C["text"])
         elif status == "SCANNING":
             card["dot"].configure(text="◉", fg=C["amber"])
-            card["status"].configure(text="SCANNING...", fg=C["amber"])
+            card["status"].configure(text="VERIFYING...", fg=C["amber"])
         elif status == "THREAT":
-            card["dot"].configure(text="●", fg=C["red"])
-            card["status"].configure(text="THREAT DETECTED", fg=C["red"])
+            # Visually stay in SCANNING mode on the student side
+            card["dot"].configure(text="◉", fg=C["amber"])
+            card["status"].configure(text="VERIFYING...", fg=C["amber"])
         elif status == "STANDBY":
             card["dot"].configure(text="○", fg=C["border"])
             card["status"].configure(text="STANDBY", fg=C["border"])
     
     def _add_alert(self, severity, event_type, reason):
-        """Add a user-friendly alert card for a detected threat."""
-        self._alert_count += 1
-        color = C["red"] if severity in ("CRITICAL", "HIGH") else C["amber"]
-        
-        alert = tk.Frame(self._alert_frame, bg=C["surface"], pady=8, padx=12)
-        alert.pack(fill="x", pady=2)
-        
-        top = tk.Frame(alert, bg=C["surface"])
-        top.pack(fill="x")
-        
-        icon = "⚠" if severity in ("CRITICAL", "HIGH") else "⚡"
-        tk.Label(top, text=icon, font=("Segoe UI", 11), bg=C["surface"], fg=color).pack(side="left", padx=(0, 8))
-        tk.Label(top, text=event_type.replace("_", " ").upper(), font=("Segoe UI", 9, "bold"),
-                 bg=C["surface"], fg=color).pack(side="left")
-        
-        ts = datetime.datetime.now().strftime("%H:%M")
-        tk.Label(top, text=ts, font=("Segoe UI", 7), bg=C["surface"], fg=C["text_dim"]).pack(side="right")
-        
-        if reason:
-            tk.Label(alert, text=reason, font=("Segoe UI", 8),
-                     bg=C["surface"], fg=C["text_dim"], anchor="w", wraplength=400).pack(fill="x", padx=(26, 0), pady=(2, 0))
-        
-        # Keep only last 10 alerts visible
-        children = self._alert_frame.winfo_children()
-        if len(children) > 10:
-            children[0].destroy()
+        """Silent reporting: Alerts are NOT added to the local UI in stealth mode."""
+        pass
 
     def _launch_wizard(self):
         wiz = InstallWizard(self, self._on_wizard_complete)

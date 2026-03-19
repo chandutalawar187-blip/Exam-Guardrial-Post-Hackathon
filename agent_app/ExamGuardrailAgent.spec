@@ -5,7 +5,7 @@ a = Analysis(
     ['guardrail_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('icon.png', '.'), ('..\\exam_guardrail', 'exam_guardrail')],
+    datas=[('icon.png', '.'), ('icon.ico', '.'), ('..\\exam_guardrail', 'exam_guardrail')],
     hiddenimports=['psutil', 'httpx', 'pystray', 'PIL', 'tkinter'],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icon.png'],
+    icon=['icon.ico'],
 )
