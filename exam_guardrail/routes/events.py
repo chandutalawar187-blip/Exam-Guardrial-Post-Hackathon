@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from exam_guardrail.models import BehavioralEvent
-from exam_guardrail.services import apply_score_delta
+from exam_guardrail.services.scoring import apply_score_delta
 from exam_guardrail.services.ai_agents import generate_haiku_alert
 from exam_guardrail.config import get_config
 from exam_guardrail.db import get_db
