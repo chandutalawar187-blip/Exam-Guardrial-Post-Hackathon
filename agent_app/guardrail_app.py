@@ -1,11 +1,3 @@
-"""
-ExamGuardrail Desktop App — Beautiful Tkinter UI
-=================================================
-A modern, branded desktop interface for the native agent.
-Students run this before their exam. It shows live status,
-scan results, and sends heartbeats to the backend API.
-"""
-
 import asyncio
 import sys
 import os
@@ -18,8 +10,11 @@ from tkinter import font as tkfont, messagebox
 import random
 import string
 import time
-import webbrowser # Added by user instruction
-import httpx      # Moved from try/except block by user instruction
+import webbrowser
+import httpx
+import psutil
+
+__version__ = "1.3.0"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -39,43 +34,32 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("guardrail_app")
 
 # ── IMPORTS ─────────────────────────────────────────────────────────────────
-try:
-    import httpx
-    HTTPX_OK = True
-except ImportError:
-    HTTPX_OK = False
-
-try:
-    import psutil
-    PSUTIL_OK = True
-except ImportError:
-    PSUTIL_OK = False
-
+# No additional try/except needed, dependencies now managed in requirements.
+SCANNERS_OK = True
 try:
     from exam_guardrail.services.scanners.ai_agent_detector import scan_ai_agents, scan_ai_network_connections, scan_hidden_windows
     from exam_guardrail.services.scanners.screen_share_detector import scan_screen_sharing
     from exam_guardrail.services.scanners.process_blocker import scan_and_block
     from exam_guardrail.services.scanners.extension_detector import scan_extensions, restore_extensions
-    SCANNERS_OK = True
 except ImportError:
     SCANNERS_OK = False
 
 DEFAULT_API_URL = "https://exam-guardrial-post-hackathon.vercel.app"
 
-# ── COLORS & THEME ──────────────────────────────────────────────────────────
+# ── COLORS & THEME (Sōl Haus Aesthetic) ──────────────────────────────────────
 C = {
-    "bg":        "#001D39",
-    "surface":   "#0A2A4A",
-    "card":      "#0D3155",
-    "accent":    "#4E8EA2",
-    "accent2":   "#7BBDE8",
-    "text":      "#BDD8E9",
-    "text_dim":  "#49769F",
-    "green":     "#10B981",
-    "amber":     "#F59E0B",
-    "red":       "#EF4444",
+    "bg":        "#F5F3EF", # Warm Off-White / Beige
+    "surface":   "#FFFFFF", # Pure White
+    "card":      "#FFFFFF",
+    "accent":    "#2D2D2D", # Dark Charcoal
+    "accent2":   "#1A1A1A", 
+    "text":      "#1A1A1A", # Graphite
+    "text_dim":  "#6B6661", # Muted Stone
+    "green":     "#1A1A1A", # Use charcoal for "Safe" status
+    "amber":     "#964B00", # Deep Brown
+    "red":       "#A52A2A", # Deep Muted Clay
     "white":     "#FFFFFF",
-    "border":    "#1A4060",
+    "border":    "#D1CDC7", # Light Sand / Stone
 }
 
 # ── AGENT LOGIC ─────────────────────────────────────────────────────────────
@@ -215,12 +199,19 @@ class InstallWizard(tk.Toplevel):
         super().__init__(parent)
         self.on_complete = on_complete
         self.title("ExamGuardrail Setup")
-        self.geometry("540x520")
-        self.resizable(True, True) # Now resizable
+        self.geometry("600x650")
+        self.resizable(True, True) 
         self.configure(bg=C["bg"])
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
-        self._center()
+        
+        # UI state handles
+        self._scroll = None
+        self._content = None
+        self._btn_back = None
+        self._btn_next = None
         self._step = 0
+        
+        self._center()
         self._session_var = tk.StringVar()
         self._url_var = tk.StringVar()
         self._api_var = tk.StringVar(value=DEFAULT_API_URL)
@@ -233,8 +224,8 @@ class InstallWizard(tk.Toplevel):
     def _center(self):
         self.update_idletasks()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        x, y = (sw - 540) // 2, (sh - 520) // 2
-        self.geometry(f"540x520+{x}+{y}")
+        x, y = (sw - 600) // 2, (sh - 650) // 2
+        self.geometry(f"600x650+{x}+{y}")
 
     def _on_cancel(self):
         self.destroy()
@@ -244,59 +235,54 @@ class InstallWizard(tk.Toplevel):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # Header (Fluid)
-        hdr = tk.Frame(self, bg=C["surface"], height=90)
+        # ── HEADER (Editorial Style) ─────────────────────────────────────────
+        hdr = tk.Frame(self, bg=C["surface"], height=120)
         hdr.grid(row=0, column=0, sticky="ew")
         hdr.pack_propagate(False)
-        tk.Label(hdr, text="G", font=("Arial", 28, "bold"), bg=C["accent"], fg=C["white"],
-                 width=2).pack(side="left", padx=20, pady=18)
-        info = tk.Frame(hdr, bg=C["surface"])
-        info.pack(side="left", pady=18)
-        tk.Label(info, text="ExamGuardrail Agent", font=("Arial", 16, "bold"),
-                 bg=C["surface"], fg=C["white"]).pack(anchor="w")
-        tk.Label(info, text="Setup Wizard", font=("Arial", 11),
-                 bg=C["surface"], fg=C["text_dim"]).pack(anchor="w")
 
-        # Content area (Scrollable)
-        self._scroll = ScrollableFrame(self)
-        self._scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        inner_hdr = tk.Frame(hdr, bg=C["surface"])
+        inner_hdr.pack(expand=True)
+
+        tk.Label(inner_hdr, text="EXAMGUARDRAIL", font=("Georgia", 24),
+                 bg=C["surface"], fg=C["text"]).pack()
+        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT", font=("Segoe UI", 8),
+                 bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
+        
+        # Thin separator
+        sep = tk.Frame(self, bg=C["border"], height=1)
+        sep.grid(row=0, column=0, sticky="s", padx=60)
+
+        # ── CONTENT AREA ─────────────────────────────────────────────────────
+        self._scroll = ScrollableFrame(self, bg=C["bg"])
+        self._scroll.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
         self._content = self._scroll.scrollable_content
+        self._content.configure(bg=C["bg"])
 
-        # Step indicator
-        self._step_bar = tk.Frame(self, bg=C["bg"])
-        self._step_bar.grid(row=2, column=0, sticky="ew", padx=30, pady=(0, 10))
-
-        # Footer nav (Fixed/Bottom)
-        nav = tk.Frame(self, bg=C["surface"], height=60)
+        # ── FOOTER NAV (Minimalist Outlined) ─────────────────────────────────
+        nav = tk.Frame(self, bg=C["bg"], height=80)
         nav.grid(row=3, column=0, sticky="ew")
         nav.pack_propagate(False)
-        self._btn_back = tk.Button(nav, text="← Back", command=self._prev,
-                                   font=("Arial", 11), bg=C["card"], fg=C["text_dim"],
-                                   relief="flat", padx=20, cursor="hand2")
-        self._btn_back.pack(side="left", padx=20, pady=12)
-        self._btn_next = tk.Button(nav, text="Next →", command=self._next,
-                                   font=("Arial", 11, "bold"), bg=C["accent"], fg=C["white"],
-                                   relief="flat", padx=20, cursor="hand2")
-        self._btn_next.pack(side="right", padx=20, pady=12)
+
+        # We'll use custom styles for buttons in the steps
+        self._btn_back = tk.Button(nav, text="BACK", command=self._prev,
+                                   font=("Segoe UI", 9), bg=C["bg"], fg=C["text_dim"],
+                                   activebackground=C["bg"], activeforeground=C["text"],
+                                   relief="flat", bd=0, cursor="hand2", padx=20)
+        self._btn_back.pack(side="left", padx=40, pady=12)
+
+        self._btn_next = tk.Button(nav, text="NEXT", command=self._next,
+                                   font=("Segoe UI", 9, "bold"), bg=C["accent"], fg=C["white"],
+                                   activebackground=C["accent2"], activeforeground=C["white"],
+                                   relief="flat", bd=0, cursor="hand2", padx=30)
+        self._btn_next.pack(side="right", padx=40, pady=12)
 
 
     def _show_step(self, step):
         for w in self._content.winfo_children():
             w.destroy()
-        for w in self._step_bar.winfo_children():
-            w.destroy()
-
-        steps = ["Welcome", "Session Code", "Settings", "Ready"]
-        for i, s in enumerate(steps):
-            dot_color = C["accent"] if i <= step else C["border"]
-            tk.Label(self._step_bar, text="●", font=("Arial", 14),
-                     bg=C["bg"], fg=dot_color).pack(side="left")
-            if i < len(steps) - 1:
-                tk.Label(self._step_bar, text="──", font=("Arial", 10),
-                         bg=C["bg"], fg=C["border"]).pack(side="left", expand=True, fill="x")
-
+        
         self._btn_back.configure(state="normal" if step > 0 else "disabled")
-        self._btn_next.configure(text="Launch Agent" if step == 3 else "Next →")
+        self._btn_next.configure(text="START MONITORING" if step == 3 else "NEXT")
 
         if step == 0:   self._step_welcome()
         elif step == 1: self._step_session()
@@ -305,101 +291,109 @@ class InstallWizard(tk.Toplevel):
 
     def _step_welcome(self):
         f = self._content
-        tk.Label(f, text="👋  Welcome", font=("Arial", 20, "bold"),
-                 bg=C["bg"], fg=C["white"]).pack(anchor="w", pady=(10, 6))
-        tk.Label(f, text="ExamGuardrail protects the integrity of your exam by\n"
-                          "monitoring your PC for AI tools and cheating software.",
-                 font=("Arial", 12), bg=C["bg"], fg=C["text"], justify="left",
-                 wraplength=440).pack(anchor="w", pady=(0, 20))
-        for icon, label in [("🔍", "Scans for AI agents & screen sharing"), ("🛡️", "Blocks prohibited processes"),
-                             ("📡", "Reports findings to your exam portal"), ("✅", "Fully reversible after exam")]:
-            row = tk.Frame(f, bg=C["card"], pady=8, padx=12)
-            row.pack(fill="x", pady=3)
-            tk.Label(row, text=icon, font=("Arial", 14), bg=C["card"]).pack(side="left", padx=6)
-            tk.Label(row, text=label, font=("Arial", 11), bg=C["card"],
-                     fg=C["text"]).pack(side="left")
+        # Centered Welcome
+        inner = tk.Frame(f, bg=C["bg"])
+        inner.pack(pady=40)
+        
+        tk.Label(inner, text="ESTABLISH INTEGRITY", font=("Georgia", 18),
+                 bg=C["bg"], fg=C["text"]).pack(pady=(0, 10))
+        
+        tk.Label(inner, text="ExamGuardrail monitors your desktop environment to ensure\n"
+                              "a fair and transparent testing experience for everyone.",
+                 font=("Segoe UI", 10), bg=C["bg"], fg=C["text_dim"], justify="center",
+                 wraplength=400).pack(pady=(0, 40))
+        
+        for label in ["AI detection & process integrity", "Secure screen sharing protocols", 
+                      "Real-time environment reporting", "Non-intrusive monitoring"]:
+            row = tk.Frame(inner, bg=C["bg"])
+            row.pack(fill="x", pady=4)
+            tk.Label(row, text="—", font=("Georgia", 10), bg=C["bg"], fg=C["border"]).pack(side="left", padx=(0, 10))
+            tk.Label(row, text=label.upper(), font=("Segoe UI", 8), bg=C["bg"],
+                     fg=C["text_dim"]).pack(side="left")
 
     def _step_session(self):
         f = self._content
-        tk.Label(f, text="🔑  Session Code", font=("Arial", 18, "bold"),
-                 bg=C["bg"], fg=C["white"]).pack(anchor="w", pady=(10, 6))
-        tk.Label(f, text="Enter the exam session code from your instructor OR\n"
-                          "paste the direct link to your exam (HackerRank, etc.)",
-                 font=("Arial", 11), bg=C["bg"], fg=C["text"], justify="left",
-                 wraplength=440).pack(anchor="w", pady=(0, 20))
+        inner = tk.Frame(f, bg=C["bg"])
+        inner.pack(pady=30, fill="x", padx=40)
+
+        tk.Label(inner, text="AUTHENTICATION", font=("Georgia", 16),
+                 bg=C["bg"], fg=C["text"]).pack(anchor="n", pady=(0, 30))
         
-        tk.Label(f, text="SESSION CODE", font=("Arial", 9, "bold"),
+        tk.Label(inner, text="SESSION CODE", font=("Segoe UI", 8, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
-        entry = tk.Entry(f, textvariable=self._session_var, font=("Courier", 16, "bold"),
-                         bg=C["card"], fg=C["accent2"], insertbackground=C["white"],
-                         relief="flat", bd=12, width=24)
-        entry.pack(fill="x", ipady=6, pady=(4, 12))
+        
+        # Minimalist Outlined Entry
+        entry_frame = tk.Frame(inner, bg=C["border"], pady=1)
+        entry_frame.pack(fill="x", pady=(5, 20))
+        entry = tk.Entry(entry_frame, textvariable=self._session_var, font=("Segoe UI", 14),
+                         bg=C["bg"], fg=C["text"], insertbackground=C["text"],
+                         relief="flat", bd=10)
+        entry.pack(fill="x")
         entry.focus()
 
-        tk.Label(f, text="OR PASTE EXAM URL", font=("Arial", 9, "bold"),
+        tk.Label(inner, text="EXAM URL (OPTIONAL)", font=("Segoe UI", 8, "bold"),
                  bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
-        tk.Entry(f, textvariable=self._url_var, font=("Arial", 10),
-                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
-                 relief="flat", bd=10).pack(fill="x", ipady=6, pady=4)
-        tk.Label(f, text="Example: https://hackerrank.com/test-1", font=("Arial", 9),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(0, 4))
+        url_frame = tk.Frame(inner, bg=C["border"], pady=1)
+        url_frame.pack(fill="x", pady=(5, 5))
+        tk.Entry(url_frame, textvariable=self._url_var, font=("Segoe UI", 10),
+                 bg=C["bg"], fg=C["text"], insertbackground=C["text"],
+                 relief="flat", bd=8).pack(fill="x")
+        
+        tk.Label(inner, text="e.g. hackerrank.com/your-test", font=("Segoe UI", 8),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
 
     def _step_settings(self):
         f = self._content
-        tk.Label(f, text="⚙️  Settings", font=("Arial", 18, "bold"),
-                 bg=C["bg"], fg=C["white"]).pack(anchor="w", pady=(10, 6))
-        tk.Label(f, text="API URL", font=("Arial", 9, "bold"),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
-        tk.Entry(f, textvariable=self._api_var, font=("Arial", 10),
-                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
-                 relief="flat", bd=10).pack(fill="x", ipady=6)
-        tk.Label(f, text="Leave default unless your instructor specified a different URL.",
-                 font=("Arial", 9), bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
+        inner = tk.Frame(f, bg=C["bg"])
+        inner.pack(pady=20, fill="x", padx=40)
 
-        tk.Label(f, text="YOUR FULL NAME", font=("Arial", 9, "bold"),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
-        tk.Entry(f, textvariable=self._student_name_var, font=("Arial", 10),
-                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
-                 relief="flat", bd=10).pack(fill="x", ipady=6)
+        tk.Label(inner, text="CONFIGURATION", font=("Georgia", 16),
+                 bg=C["bg"], fg=C["text"]).pack(anchor="n", pady=(0, 20))
 
-        tk.Label(f, text="ADMIN EMAIL (Optional)", font=("Arial", 9, "bold"),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=(10, 2))
-        tk.Entry(f, textvariable=self._admin_email_var, font=("Arial", 10),
-                 bg=C["card"], fg=C["text"], insertbackground=C["white"],
-                 relief="flat", bd=10).pack(fill="x", ipady=6)
-        tk.Label(f, text="Reports will be sent here if provided.",
-                 font=("Arial", 9), bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", pady=4)
+        tk.Label(inner, text="YOUR FULL NAME", font=("Segoe UI", 8, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
+        name_frame = tk.Frame(inner, bg=C["border"], pady=1)
+        name_frame.pack(fill="x", pady=(5, 15))
+        tk.Entry(name_frame, textvariable=self._student_name_var, font=("Segoe UI", 10),
+                 bg=C["bg"], fg=C["text"], insertbackground=C["text"],
+                 relief="flat", bd=8).pack(fill="x")
 
-        blk = tk.Frame(f, bg=C["card"], pady=12, padx=14)
-        blk.pack(fill="x", pady=(16, 0))
-        cb = tk.Checkbutton(blk, variable=self._block_var, bg=C["card"],
-                             activebackground=C["card"], selectcolor=C["accent"],
+        tk.Label(inner, text="ADMIN EMAIL (OPTIONAL)", font=("Segoe UI", 8, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w")
+        email_frame = tk.Frame(inner, bg=C["border"], pady=1)
+        email_frame.pack(fill="x", pady=(5, 15))
+        tk.Entry(email_frame, textvariable=self._admin_email_var, font=("Segoe UI", 10),
+                 bg=C["bg"], fg=C["text"], insertbackground=C["text"],
+                 relief="flat", bd=8).pack(fill="x")
+
+        blk = tk.Frame(inner, bg=C["bg"], pady=10)
+        blk.pack(fill="x", pady=(10, 0))
+        cb = tk.Checkbutton(blk, variable=self._block_var, bg=C["bg"],
+                             activebackground=C["bg"], selectcolor=C["bg"],
                              relief="flat", cursor="hand2")
         cb.pack(side="left")
-        inner = tk.Frame(blk, bg=C["card"])
-        inner.pack(side="left", padx=6)
-        tk.Label(inner, text="Enable Active Blocking (Recommended)", font=("Arial", 11, "bold"),
-                 bg=C["card"], fg=C["white"]).pack(anchor="w")
-        tk.Label(inner, text="Terminates detected AI tools and blocks cheating extensions.",
-                 font=("Arial", 9), bg=C["card"], fg=C["text_dim"]).pack(anchor="w")
+        tk.Label(blk, text="ENABLE ACTIVE PROTECTION", font=("Segoe UI", 8, "bold"),
+                 bg=C["bg"], fg=C["text"]).pack(side="left", padx=5)
 
     def _step_ready(self):
         f = self._content
-        code = self._session_var.get().strip().upper() or "—"
-        tk.Label(f, text="🚀  Ready to Launch", font=("Arial", 18, "bold"),
-                 bg=C["bg"], fg=C["white"]).pack(anchor="w", pady=(10, 4))
-        tk.Label(f, text="Your agent will start monitoring when you click Launch Agent.",
-                 font=("Arial", 11), bg=C["bg"], fg=C["text"]).pack(anchor="w", pady=(0, 16))
-        for label, value in [("Session Code", code),
-                               ("API URL", self._api_var.get()),
-                               ("Active Blocking", "ON ✅" if self._block_var.get() else "OFF ⚠️"),
-                               ("Platform", f"{platform.system()} {platform.release()}")]:
-            row = tk.Frame(f, bg=C["card"], pady=8, padx=14)
-            row.pack(fill="x", pady=2)
-            tk.Label(row, text=label, font=("Arial", 9, "bold"), width=16, anchor="w",
-                     bg=C["card"], fg=C["text_dim"]).pack(side="left")
-            tk.Label(row, text=value, font=("Arial", 10), bg=C["card"],
-                     fg=C["accent2"]).pack(side="left")
+        inner = tk.Frame(f, bg=C["bg"])
+        inner.pack(pady=30, fill="x", padx=40)
+
+        tk.Label(inner, text="CONFIRMATION", font=("Georgia", 16),
+                 bg=C["bg"], fg=C["text"]).pack(anchor="n", pady=(0, 30))
+
+        for label, value in [("IDENTIFIER", self._session_var.get().upper() or "PENDING"),
+                               ("PROTECTION", "ACTIVE" if self._block_var.get() else "LOG ONLY"),
+                               ("PLATFORM", platform.system().upper())]:
+            row = tk.Frame(inner, bg=C["bg"], pady=12)
+            row.pack(fill="x")
+            # Thin separator
+            tk.Frame(inner, bg=C["border"], height=1).pack(fill="x")
+            tk.Label(row, text=label, font=("Segoe UI", 8, "bold"), width=15, anchor="w",
+                     bg=C["bg"], fg=C["text_dim"]).pack(side="left")
+            tk.Label(row, text=value, font=("Segoe UI", 9), anchor="e",
+                     bg=C["bg"], fg=C["text"]).pack(side="right", expand=True, fill="x")
 
     def _next(self):
         if self._step == 1:
@@ -455,6 +449,20 @@ class GuardrailApp(tk.Tk):
         self._exam_url = ""
         self._findings = []
         self._heartbeat_ok = True
+        
+        # UI state handles
+        self._subtitle = None
+        self._dot = None
+        self._dot_frame = None
+        self._status_val = None
+        self._status_lbl = None
+        self._session_lbl = None
+        self._heartbeat_lbl = None
+        self._stop_btn = None
+        self._stat_labels = {}
+        self._feed = None
+        self._main_scroll = None
+        
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
         self._set_icon()
@@ -482,98 +490,111 @@ class GuardrailApp(tk.Tk):
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # ── Header (Fluid height)
-        hdr = tk.Frame(self, bg=C["surface"], pady=15)
+        # ── HEADER (Sōl Style) ──────────────────────────────────────────────
+        hdr = tk.Frame(self, bg=C["surface"], height=100)
         hdr.grid(row=0, column=0, sticky="ew")
-        logo_frame = tk.Frame(hdr, bg=C["accent"], width=52, height=52)
-        logo_frame.pack(side="left", padx=(20, 14), pady=14)
-        logo_frame.pack_propagate(False)
-        tk.Label(logo_frame, text="G", font=("Arial", 22, "bold"),
-                 bg=C["accent"], fg=C["white"]).place(relx=.5, rely=.5, anchor="center")
-        title_f = tk.Frame(hdr, bg=C["surface"])
-        title_f.pack(side="left", pady=14)
-        tk.Label(title_f, text="ExamGuardrail Agent", font=("Arial", 16, "bold"),
-                 bg=C["surface"], fg=C["white"]).pack(anchor="w")
-        self._subtitle = tk.Label(title_f, text="Not started", font=("Arial", 10),
-                                  bg=C["surface"], fg=C["text_dim"])
-        self._subtitle.pack(anchor="w")
+        hdr.pack_propagate(False)
 
-        # status dot
-        self._dot = tk.Label(hdr, text="●", font=("Arial", 22),
-                              bg=C["surface"], fg=C["text_dim"])
-        self._dot.pack(side="right", padx=20)
+        title_f = tk.Frame(hdr, bg=C["surface"])
+        title_f.pack(side="left", padx=40, pady=20)
+        
+        tk.Label(title_f, text="EXAMGUARDRAIL", font=("Georgia", 20),
+                 bg=C["surface"], fg=C["text"]).pack(anchor="w")
+        self._subtitle = tk.Label(title_f, text="SENTINEL STANDBY", font=("Segoe UI", 8),
+                                  bg=C["surface"], fg=C["text_dim"])
+        self._subtitle.pack(anchor="w", pady=(2, 0))
+
+        # Status indicator (Minimalist dot)
+        self._dot_frame = tk.Frame(hdr, bg=C["surface"])
+        self._dot_frame.pack(side="right", padx=40)
+        self._dot = tk.Label(self._dot_frame, text="●", font=("Segoe UI", 14),
+                              bg=C["surface"], fg=C["border"])
+        self._dot.pack(side="left", padx=5)
+        self._status_val = tk.Label(self._dot_frame, text="LOGGED OUT", font=("Segoe UI", 8, "bold"),
+                                   bg=C["surface"], fg=C["text_dim"])
+        self._status_val.pack(side="left")
+
+        # Thin separator
+        tk.Frame(self, bg=C["border"], height=1).grid(row=0, column=0, sticky="s", padx=40)
 
         # ── Scrollable Body
         self._main_scroll = ScrollableFrame(self)
         self._main_scroll.grid(row=1, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
         body = self._main_scroll.scrollable_content
 
-        # ── Status card
-        sc = tk.Frame(body, bg=C["card"], pady=18, padx=20)
-        sc.pack(fill="x", padx=10, pady=12)
-        # row 1
-        r1 = tk.Frame(sc, bg=C["card"])
-        r1.pack(fill="x")
-        self._status_lbl = tk.Label(r1, text="Waiting for setup...", font=("Arial", 13, "bold"),
-                                    bg=C["card"], fg=C["text"])
-        self._status_lbl.pack(side="left")
-        self._heartbeat_lbl = tk.Label(r1, text="", font=("Arial", 9),
-                                       bg=C["card"], fg=C["text_dim"])
-        self._heartbeat_lbl.pack(side="right")
-        # session info
-        self._session_lbl = tk.Label(sc, text="", font=("Courier", 10),
-                                     bg=C["card"], fg=C["text_dim"])
-        self._session_lbl.pack(anchor="w", pady=(4, 0))
+        # ── STATUS & METRICS
+        body_frame = tk.Frame(body, bg=C["bg"], padx=40)
+        body_frame.pack(fill="x", pady=30)
 
-        # ── Stats bar
-        sb = tk.Frame(body, bg=C["surface"])
-        sb.pack(fill="x", padx=10)
+        self._status_lbl = tk.Label(body_frame, text="WAITING FOR AUTHORIZATION", font=("Georgia", 14),
+                                    bg=C["bg"], fg=C["text_dim"])
+        self._status_lbl.pack(pady=(0, 5))
+        
+        self._session_lbl = tk.Label(body_frame, text="NO ACTIVE SESSION", font=("Segoe UI", 9),
+                                     bg=C["bg"], fg=C["text_dim"])
+        self._session_lbl.pack()
+
+        # Heartbeat indicator
+        self._heartbeat_lbl = tk.Label(body_frame, text="SYSTEM READY", font=("Segoe UI", 7, "bold"),
+                                       bg=C["bg"], fg=C["border"])
+        self._heartbeat_lbl.pack(pady=(15, 0))
+
+        # ── STATS (Minimalist horizontal row)
+        sb = tk.Frame(body, bg=C["bg"])
+        sb.pack(fill="x", padx=40, pady=(0, 30))
+        
         self._stat_labels = {}
-        for key, icon, label in [("scans", "🔍", "Scans"), ("findings", "⚠️", "Threats"),
-                                   ("blocked", "🚫", "Blocked"), ("heartbeats", "💓", "Heartbeats")]:
-            col = tk.Frame(sb, bg=C["surface"], pady=10)
-            col.pack(side="left", expand=True, fill="x")
-            tk.Label(col, text=icon, font=("Arial", 14), bg=C["surface"]).pack()
-            vl = tk.Label(col, text="0", font=("Arial", 16, "bold"),
-                          bg=C["surface"], fg=C["white"])
+        for key, label in [("scans", "SCANS"), ("findings", "THREATS"),
+                            ("blocked", "BLOCKED"), ("heartbeats", "PULSE")]:
+            col = tk.Frame(sb, bg=C["bg"])
+            col.pack(side="left", expand=True)
+            
+            vl = tk.Label(col, text="0", font=("Georgia", 18),
+                          bg=C["bg"], fg=C["text"])
             vl.pack()
-            tk.Label(col, text=label, font=("Arial", 8), bg=C["surface"],
-                     fg=C["text_dim"]).pack()
+            tk.Label(col, text=label, font=("Segoe UI", 7, "bold"), 
+                     bg=C["bg"], fg=C["text_dim"]).pack()
             self._stat_labels[key] = vl
 
-        # ── Findings feed
-        tk.Label(body, text="DETECTION LOG", font=("Arial", 8, "bold"),
-                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="w", padx=12, pady=(10, 2))
-        feed_frame = tk.Frame(body, bg=C["bg"])
-        feed_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        # ── LOG FEED (Editorial style)
+        tk.Label(body, text="SYSTEM JOURNAL", font=("Segoe UI", 7, "bold"),
+                 bg=C["bg"], fg=C["text_dim"]).pack(anchor="n", pady=(0, 10))
+        
+        feed_container = tk.Frame(body, bg=C["bg"], padx=40)
+        feed_container.pack(fill="both", expand=True)
+        
+        feed_frame = tk.Frame(feed_container, bg=C["border"], pady=1)
+        feed_frame.pack(fill="both", expand=True)
 
-        scrollbar = tk.Scrollbar(feed_frame, bg=C["border"], troughcolor=C["bg"])
-        scrollbar.pack(side="right", fill="y")
-
-        self._feed = tk.Text(feed_frame, bg=C["surface"], fg=C["text"],
-                             font=("Courier", 9), relief="flat", wrap="word",
-                             yscrollcommand=scrollbar.set, state="disabled",
-                             insertbackground=C["white"], padx=10, pady=8)
+        self._feed = tk.Text(feed_frame, bg=C["bg"], fg=C["text"],
+                             font=("Consolas", 9), relief="flat", wrap="word",
+                             state="disabled", insertbackground=C["text"], 
+                             padx=15, pady=15, height=12)
         self._feed.pack(fill="both", expand=True)
-        scrollbar.config(command=self._feed.yview)
 
         self._feed.tag_configure("ts", foreground=C["text_dim"])
-        self._feed.tag_configure("ok", foreground=C["green"])
+        self._feed.tag_configure("ok", foreground=C["text"])
         self._feed.tag_configure("warn", foreground=C["amber"])
         self._feed.tag_configure("threat", foreground=C["red"])
         self._feed.tag_configure("dim", foreground=C["text_dim"])
-        self._append_log("Agent initialized. Waiting for session setup...", "dim")
+        self._append_log("System dormant. Initializing...", "dim")
 
-        # ── Bottom bar (Fixed)
-        bot = tk.Frame(self, bg=C["surface"], height=46)
+        # ── BOTTOM BAR (Quiet Luxury)
+        bot = tk.Frame(self, bg=C["surface"], height=60)
         bot.grid(row=3, column=0, sticky="ew")
         bot.pack_propagate(False)
-        self._stop_btn = tk.Button(bot, text="Stop Agent", command=self._stop_agent,
-                                   font=("Arial", 10, "bold"), bg=C["red"], fg=C["white"],
-                                   relief="flat", padx=16, cursor="hand2", state="disabled")
-        self._stop_btn.pack(side="right", padx=14, pady=8)
-        tk.Label(bot, text=f"Platform: {platform.system()} {platform.release()}",
-                 font=("Arial", 8), bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=14, pady=12)
+
+        # Thin top border
+        tk.Frame(bot, bg=C["border"], height=1).pack(fill="x")
+
+        self._stop_btn = tk.Button(bot, text="STOP MONITORING", command=self._stop_agent,
+                                   font=("Segoe UI", 8, "bold"), bg=C["bg"], fg=C["red"],
+                                   activebackground=C["bg"], activeforeground=C["red"],
+                                   relief="flat", bd=0, padx=20, cursor="hand2", state="disabled")
+        self._stop_btn.pack(side="right", padx=40, pady=15)
+        
+        tk.Label(bot, text="VERIFIED SECURE ENVIRONMENT", font=("Segoe UI", 7, "bold"), 
+                 bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=40)
 
     def _append_log(self, msg, tag="ok"):
         self._feed.configure(state="normal")
@@ -653,21 +674,23 @@ class GuardrailApp(tk.Tk):
     def _on_status(self, status):
         def _upd():
             if status == "running":
-                self._dot.configure(fg=C["green"])
-                self._status_lbl.configure(text="🛡️  Agent Running — Monitoring Active", fg=C["green"])
-                self._append_log("Agent started. Monitoring active.", "ok")
+                self._dot.configure(fg=C["text"])
+                self._status_val.configure(text="MONITORING ACTIVE", fg=C["text"])
+                self._status_lbl.configure(text="SECURE ENVIRONMENT ACTIVE", fg=C["text"])
+                self._append_log("Surveillance established.", "ok")
             else:
                 self._dot.configure(fg=C["text_dim"])
-                self._status_lbl.configure(text="Agent stopped.", fg=C["text_dim"])
-                self._append_log("Agent stopped.", "dim")
+                self._status_val.configure(text="SESSION ENDED", fg=C["text_dim"])
+                self._status_lbl.configure(text="AGENT STOPPED", fg=C["text_dim"])
+                self._append_log("Monitoring terminated.", "dim")
         self.after(0, _upd)
 
     def _on_heartbeat(self, ok):
         def _upd():
             if ok:
-                self._heartbeat_lbl.configure(text="💓 Heartbeat OK", fg=C["green"])
+                self._heartbeat_lbl.configure(text="REMOTE LINK ACTIVE", fg=C["text_dim"])
             else:
-                self._heartbeat_lbl.configure(text="⚠️ Heartbeat Failed", fg=C["amber"])
+                self._heartbeat_lbl.configure(text="CONNECTION INTERRUPTED", fg=C["amber"])
         self.after(0, _upd)
 
     def _on_finding(self, f):
