@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.3.2"
+__version__ = "1.3.4"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +41,10 @@ try:
     from exam_guardrail.services.scanners.screen_share_detector import scan_screen_sharing
     from exam_guardrail.services.scanners.process_blocker import scan_and_block
     from exam_guardrail.services.scanners.extension_detector import scan_extensions, restore_extensions
-except ImportError:
+except Exception as e:
+    import traceback
+    logging.error(f"SCANNER IMPORT FAILED: {str(e)}")
+    logging.error(traceback.format_exc())
     SCANNERS_OK = False
 
 DEFAULT_API_URL = "https://exam-guardrial-post-hackathon.vercel.app"
