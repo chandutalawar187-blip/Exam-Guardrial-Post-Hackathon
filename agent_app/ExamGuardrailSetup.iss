@@ -5,7 +5,8 @@
 [Setup]
 AppId={{D1A3B9C5-7E2D-4C6A-8F9B-2E1A3C4D5E6F}
 AppName=ExamGuardrail Agent
-AppVersion=1.3.6
+AppVersion=1.3.7
+UninstallDisplayIcon={app}\ExamGuardrailAgent.exe
 AppPublisher=ExamGuardrail Team
 DefaultDirName={localappdata}\ExamGuardrail
 DefaultGroupName=ExamGuardrail
