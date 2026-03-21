@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.6"
+__version__ = "1.4.7"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -249,7 +249,7 @@ class InstallWizard(tk.Toplevel):
 
         tk.Label(inner_hdr, text="EXAMGUARDRAIL", font=("Georgia", 24),
                  bg=C["surface"], fg=C["text"]).pack()
-        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [VERIFIED]", font=("Segoe UI", 8),
+        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [FINALISED]", font=("Segoe UI", 8),
                  bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
         
         self._update_container = tk.Frame(hdr, bg=C["surface"])
@@ -738,11 +738,11 @@ class GuardrailApp(tk.Tk):
                 
                 try:
                     import ctypes
-                    # Using ShellExecute to launch as admin if needed and pass flags
-                    # /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
-                    # We use /VERYSILENT to minimize interaction but ensure it runs.
-                    params = "/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
-                    ctypes.windll.shell32.ShellExecuteW(None, "runas", dest, params, None, 1)
+                    # Using ShellExecute with default verb (None) to launch in user context unless elevation is required
+                    # /SILENT shows a progress bar but doesn't ask questions.
+                    # /SP- suppresses the "This will install..." prompt.
+                    params = "/SILENT /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                    ctypes.windll.shell32.ShellExecuteW(None, None, dest, params, None, 1)
                 except Exception as e:
                     log.error(f"ShellExecute failed: {e}")
                     # Fallback to simple Popen if ShellExecute fails
