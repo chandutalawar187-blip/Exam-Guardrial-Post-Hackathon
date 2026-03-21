@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.5.2"
+__version__ = "1.5.3"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
