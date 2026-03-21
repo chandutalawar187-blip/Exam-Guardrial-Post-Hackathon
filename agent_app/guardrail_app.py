@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.2"
+__version__ = "1.4.3"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -213,6 +213,7 @@ class InstallWizard(tk.Toplevel):
         self._btn_back = None
         self._btn_next = None
         self._step = 0
+        self._update_btn = None
         
         self._center()
         self._session_var = tk.StringVar()
@@ -250,6 +251,9 @@ class InstallWizard(tk.Toplevel):
                  bg=C["surface"], fg=C["text"]).pack()
         tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT", font=("Segoe UI", 8),
                  bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
+        
+        self._update_container = tk.Frame(hdr, bg=C["surface"])
+        self._update_container.place(relx=1.0, rely=0.0, anchor="ne", x=-20, y=20)
         
         # Thin separator
         sep = tk.Frame(self, bg=C["border"], height=1)
@@ -291,6 +295,16 @@ class InstallWizard(tk.Toplevel):
         elif step == 1: self._step_session()
         elif step == 2: self._step_settings()
         elif step == 3: self._step_ready()
+
+    def show_update_btn(self, version, url):
+        """Show a prominent update button in the header."""
+        if self._update_btn: return
+        self._update_btn = tk.Button(self._update_container, text=f"UPDATE v{version} AVAILABLE",
+                                     font=("Segoe UI", 7, "bold"), bg=C["accent"], fg="white",
+                                     activebackground=C["accent2"], activeforeground="white",
+                                     relief="flat", bd=0, padx=10, pady=5, cursor="hand2",
+                                     command=lambda: self.master._on_update_click(version, url))
+        self._update_btn.pack()
 
     def _step_welcome(self):
         f = self._content
@@ -470,9 +484,11 @@ class GuardrailApp(tk.Tk):
         self._alert_count = 0
         self._icon_img = None
         self._wiz_icon = None
+        self._wiz = None # Handle to wizard
         
         # Update state
         self._update_banner = None
+        self._latest_update = None # {"version": ..., "url": ...}
         self._is_updating = False
         
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -650,24 +666,35 @@ class GuardrailApp(tk.Tk):
                         for asset in data.get("assets", []):
                             if asset["name"] == "ExamGuardrailSetup.exe":
                                 download_url = asset["browser_download_url"]
-                                self.after(100, lambda: self._show_update_notification(latest_tag, download_url))
+                                self._latest_update = {"version": latest_tag, "url": download_url}
+                                self.after(100, self._apply_update_ui)
                                 break
         except Exception as e:
             log.debug(f"Update check failed: {e}")
 
-    def _show_update_notification(self, version, download_url):
-        log.info(f"Update available: {version}")
-        self._update_banner = tk.Frame(self, bg=C["accent"], height=40)
-        self._update_banner.grid(row=3, column=0, sticky="ew")
+    def _apply_update_ui(self):
+        if not self._latest_update: return
+        v, url = self._latest_update["version"], self._latest_update["url"]
         
-        tk.Label(self._update_banner, text=f"NEW UPDATE AVAILABLE: v{version}", 
-                 font=("Segoe UI", 8, "bold"), bg=C["accent"], fg="white").pack(side="left", padx=20)
+        # 1. Update wizard if open
+        if self._wiz and self._wiz.winfo_exists():
+            self._wiz.show_update_btn(v, url)
         
-        btn = tk.Button(self._update_banner, text="UPDATE NOW", font=("Segoe UI", 7, "bold"),
-                        bg=C["surface"], fg=C["accent"], activebackground=C["bg"],
-                        relief="flat", bd=0, padx=10, pady=2, cursor="hand2",
-                        command=lambda: self._on_update_click(version, download_url))
-        btn.pack(side="right", padx=20, pady=8)
+        # 2. Update main app header/banner
+        if not self._update_banner:
+            log.info(f"Showing update banner in main app: v{v}")
+            # Put it in the header for visibility
+            self._update_banner = tk.Frame(self, bg=C["accent"], height=30)
+            self._update_banner.grid(row=0, column=0, sticky="new") # Overlay on header
+            
+            tk.Label(self._update_banner, text=f"UPDATE v{v} READY", 
+                     font=("Segoe UI", 7, "bold"), bg=C["accent"], fg="white").pack(side="left", padx=20)
+            
+            btn = tk.Button(self._update_banner, text="INSTALL", font=("Segoe UI", 6, "bold"),
+                            bg=C["surface"], fg=C["accent"], activebackground=C["bg"],
+                            relief="flat", bd=0, padx=8, pady=1, cursor="hand2",
+                            command=lambda: self._on_update_click(v, url))
+            btn.pack(side="right", padx=10, pady=4)
 
     def _on_update_click(self, version, download_url):
         if messagebox.askyesno("ExamGuardrail Update", 
@@ -741,18 +768,22 @@ class GuardrailApp(tk.Tk):
         pass
 
     def _launch_wizard(self):
-        wiz = InstallWizard(self, self._on_wizard_complete)
+        self._wiz = InstallWizard(self, on_complete=self._on_wizard_complete)
+        # If we already found an update in the background, show it immediately
+        if self._latest_update:
+            self._wiz.show_update_btn(self._latest_update["version"], self._latest_update["url"])
+        self._wiz.show()
         # Set wizard icon
         ico_path = os.path.join(_here, "icon.ico")
         png_path = os.path.join(_here, "icon.png")
         try:
             if platform.system() == "Windows" and os.path.exists(ico_path):
-                wiz.iconbitmap(ico_path)
+                self._wiz.iconbitmap(ico_path)
             elif os.path.exists(png_path):
                 self._wiz_icon = tk.PhotoImage(file=png_path)
-                wiz.iconphoto(True, self._wiz_icon)
+                self._wiz.iconphoto(True, self._wiz_icon)
         except: pass
-        wiz.show()
+        self._wiz.show()
 
     def _on_wizard_complete(self, session_id, api_url, block, student_name, admin_email, exam_url):
         self._session_id = session_id
