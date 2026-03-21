@@ -5,7 +5,7 @@
 [Setup]
 AppId={{D1A3B9C5-7E2D-4C6A-8F9B-2E1A3C4D5E6F}
 AppName=ExamGuardrail Agent
-AppVersion=1.6.8
+AppVersion=1.6.9
 AppPublisher=ExamGuardrail Security
 AppPublisherURL=https://exam-guardrial-post-hackathon.vercel.app
 AppSupportURL=https://exam-guardrial-post-hackathon.vercel.app

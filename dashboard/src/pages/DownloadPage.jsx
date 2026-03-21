@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 // Direct download via our backend API — no GitHub redirect
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const RELEASE_TAG = 'v1.6.8';
+const RELEASE_TAG = 'v1.6.9';
 const DOWNLOADS = {
   windows: `${API_BASE}/api/downloads/windows`,
   macos: `${API_BASE}/api/downloads/macos`,
@@ -31,8 +31,12 @@ const OS_CARDS = [
     ),
     file: 'ExamGuardrailSetup.exe',
     size: '~95 MB',
-    instructions: 'Double-click to install. Setup wizard guides you through.',
     gradient: 'from-blue-500 to-cyan-400',
+    steps: [
+      { t: 'Download', d: 'Click "Download" to get the .exe installer signature.' },
+      { t: 'Security', d: 'If Windows SmartScreen appears, click "More info" and "Run anyway".' },
+      { t: 'Install', d: 'Follow the setup wizard to complete the authoritative environment setup.' },
+    ]
   },
   {
     id: 'macos',
@@ -44,8 +48,12 @@ const OS_CARDS = [
     ),
     file: 'ExamGuardrailSetup-macOS.dmg',
     size: '~90 MB',
-    instructions: 'Open the DMG and drag to Applications.',
     gradient: 'from-gray-500 to-gray-300',
+    steps: [
+      { t: 'Download', d: 'Grab the official .dmg disk image package.' },
+      { t: 'Drag & Drop', d: 'Open the DMG and drag ExamGuardrail to your Applications folder.' },
+      { t: 'Permissions', d: 'If blocked, allow it in "System Settings > Privacy & Security > Open Anyway".' },
+    ]
   },
   {
     id: 'linux',
@@ -57,13 +65,18 @@ const OS_CARDS = [
     ),
     file: 'ExamGuardrailSetup-Linux.deb',
     size: '~85 MB',
-    instructions: 'Run: sudo dpkg -i ExamGuardrailSetup-Linux.deb',
     gradient: 'from-amber-500 to-orange-400',
+    steps: [
+      { t: 'Download', d: 'Download the .deb debian package built for Linux systems.' },
+      { t: 'Terminal', d: 'Run: sudo dpkg -i ExamGuardrailSetup-Linux.deb in your terminal.' },
+      { t: 'Dependency', d: 'Run: sudo apt-get install -f to fix any environment dependencies.' },
+    ]
   },
 ];
 
 export default function DownloadPage() {
   const [activeOS, setActiveOS] = useState('windows');
+  const [showModal, setShowModal] = useState(null); // 'windows' | 'macos' | 'linux' | null
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [scrollY, setScrollY] = useState(0);
 
@@ -161,15 +174,15 @@ export default function DownloadPage() {
         </p>
 
         {/* Quick Download Button */}
-        <a
-          href={DOWNLOADS[activeOS]}
+        <button
+          onClick={() => setShowModal(activeOS)}
           className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-[#4E8EA2] to-[#7BBDE8] text-white font-bold text-lg shadow-2xl shadow-[#4E8EA2]/40 hover:shadow-[#4E8EA2]/60 hover:scale-105 active:scale-95 transition-all duration-300"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
           Download for {OS_CARDS.find(c => c.id === activeOS)?.name}
-        </a>
+        </button>
         <p className="text-sm text-[#49769F] mt-3">
           {OS_CARDS.find(c => c.id === activeOS)?.file} • {OS_CARDS.find(c => c.id === activeOS)?.size}
         </p>
@@ -200,16 +213,18 @@ export default function DownloadPage() {
 
               {activeOS === os.id && (
                 <div className="mt-4 pt-4 border-t border-white/10">
-                  <a
-                    href={DOWNLOADS[os.id]}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowModal(os.id);
+                    }}
                     className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r ${os.gradient} shadow-lg hover:scale-105 active:scale-95 transition-all duration-300`}
-                    onClick={(e) => e.stopPropagation()}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Download {os.size}
-                  </a>
+                  </button>
                 </div>
               )}
             </button>
@@ -288,9 +303,9 @@ export default function DownloadPage() {
           </p>
           <div className="relative flex flex-wrap justify-center gap-4">
             {OS_CARDS.map((os) => (
-              <a
+              <button
                 key={os.id}
-                href={DOWNLOADS[os.id]}
+                onClick={() => setShowModal(os.id)}
                 className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold border transition-all duration-300 hover:scale-105
                   ${os.id === 'windows'
                     ? 'bg-white text-[#001D39] border-white shadow-xl'
@@ -299,7 +314,7 @@ export default function DownloadPage() {
               >
                 <span className="w-5 h-5 flex items-center justify-center">{os.icon}</span>
                 {os.name}
-              </a>
+              </button>
             ))}
           </div>
         </div>
@@ -316,6 +331,68 @@ export default function DownloadPage() {
         </div>
       </footer>
 
+      {/* ─── Instruction Modal ─── */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/40 animate-in fade-in duration-300">
+          <div className="relative w-full max-w-lg bg-[#001D39]/90 border border-white/20 rounded-3xl p-8 shadow-2xl shadow-blue-500/10 overflow-hidden">
+            {/* Background decoration */}
+            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[80px] opacity-30 bg-gradient-to-br ${OS_CARDS.find(o => o.id === showModal)?.gradient}`} />
+            
+            <div className="relative">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center p-2.5 text-[#7BBDE8] border border-white/10`}>
+                    {OS_CARDS.find(o => o.id === showModal)?.icon}
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Install for {OS_CARDS.find(o => o.id === showModal)?.name}</h2>
+                    <p className="text-sm text-[#BDD8E9]/60">Follow these steps for a secure setup</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowModal(null)}
+                  className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-6 mb-10">
+                {OS_CARDS.find(o => o.id === showModal)?.steps.map((step, idx) => (
+                  <div key={idx} className="flex gap-4 group">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-[#7BBDE8] group-hover:bg-[#7BBDE8] group-hover:text-[#001D39] transition-all duration-300">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white mb-0.5">{step.t}</h4>
+                      <p className="text-sm text-[#BDD8E9]/70 leading-relaxed">{step.d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <a
+                  href={DOWNLOADS[showModal]}
+                  className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-gradient-to-r ${OS_CARDS.find(o => o.id === showModal)?.gradient} text-white font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform duration-300`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download {OS_CARDS.find(o => o.id === showModal)?.size}
+                </a>
+                <button 
+                  onClick={() => setShowModal(null)}
+                  className="text-sm font-semibold text-[#BDD8E9]/60 hover:text-white transition-colors"
+                >
+                  I've ready the instructions, close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Custom CSS Animations ─── */}
       <style>{`
         @keyframes float {
@@ -325,6 +402,8 @@ export default function DownloadPage() {
           75% { transform: translateY(-15px) rotate(-5deg); opacity: 0.7; }
         }
         .animate-float { animation: float 12s ease-in-out infinite; }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
