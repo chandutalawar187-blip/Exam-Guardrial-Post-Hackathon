@@ -4,7 +4,11 @@ a = Analysis(
     ['guardrail_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('..\\exam_guardrail', 'exam_guardrail')] if sys.platform == 'win32' else [('../exam_guardrail', 'exam_guardrail')],
+    datas=[
+        ('..\\exam_guardrail', 'exam_guardrail'),
+        ('icon.png', '.'),
+        ('icon.ico', '.')
+    ] if sys.platform == 'win32' else [('../exam_guardrail', 'exam_guardrail')],
     hiddenimports=['psutil', 'httpx', 'pystray', 'PIL', 'tkinter'],
     hookspath=[],
     hooksconfig={},

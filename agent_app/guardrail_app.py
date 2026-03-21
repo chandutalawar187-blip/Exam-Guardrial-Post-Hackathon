@@ -14,10 +14,16 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.6.3"
+__version__ = "1.6.4"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
+
+# Support for PyInstaller _MEIPASS
+if hasattr(sys, '_MEIPASS'):
+    _base_path = sys._MEIPASS
+else:
+    _base_path = _here
 _root = os.path.dirname(_here)
 for _p in [_here, _root]:
     if _p not in sys.path:
@@ -68,8 +74,8 @@ C = {
 # ── ICON HELPER ─────────────────────────────────────────────────────────────
 def set_window_icon(window):
     """Set the window icon for any tk window or toplevel."""
-    ico_path = os.path.join(_here, "icon.ico")
-    png_path = os.path.join(_here, "icon.png")
+    ico_path = os.path.join(_base_path, "icon.ico")
+    png_path = os.path.join(_base_path, "icon.png")
     try:
         if platform.system() == "Windows" and os.path.exists(ico_path):
             window.iconbitmap(ico_path)

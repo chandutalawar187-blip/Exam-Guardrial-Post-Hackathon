@@ -28,6 +28,11 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
+    datas=[
+        ('..\\exam_guardrail', 'exam_guardrail'),
+        ('icon.png', '.'),
+        ('icon.ico', '.')
+    ],
     name='ExamGuardrailUpdater',
     debug=False,
     bootloader_ignore_signals=False,
