@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.5"
+__version__ = "1.4.6"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -249,7 +249,7 @@ class InstallWizard(tk.Toplevel):
 
         tk.Label(inner_hdr, text="EXAMGUARDRAIL", font=("Georgia", 24),
                  bg=C["surface"], fg=C["text"]).pack()
-        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT", font=("Segoe UI", 8),
+        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [VERIFIED]", font=("Segoe UI", 8),
                  bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
         
         self._update_container = tk.Frame(hdr, bg=C["surface"])
