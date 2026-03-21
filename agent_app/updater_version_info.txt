@@ -5,7 +5,7 @@ VSVersionInfo(
     prodvers=(1, 5, 8, 0),
     mask=0x3f,
     flags=0x0,
-    os=0x40004,
+    fileos=0x40004,
     filetype=0x1,
     subtype=0x0,
     date=(0, 0)
