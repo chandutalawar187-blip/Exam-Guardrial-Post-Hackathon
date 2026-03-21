@@ -15,7 +15,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.6.6"
+__version__ = "1.6.7"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -512,6 +512,7 @@ class GuardrailApp(tk.Tk):
         # Update state
         self._update_banner = None
         self._latest_update = None # {"version": ..., "url": ...}
+        self._last_notified_version = None 
         self._is_updating = False
         
         # Create AppMutex for Inno Setup to detect running instance
@@ -527,8 +528,8 @@ class GuardrailApp(tk.Tk):
         set_window_icon(self)
         self._center()
         
-        # Start update check in background
-        threading.Thread(target=self._check_updates_sync, daemon=True).start()
+        # Start cyclic update check in background (every 30 mins)
+        threading.Thread(target=self._update_checker_loop, daemon=True).start()
         
         # Start wizard after window shown
         self.after(200, self._launch_wizard)
@@ -669,26 +670,31 @@ class GuardrailApp(tk.Tk):
         tk.Label(bot, text="VERIFIED SECURE ENVIRONMENT", font=("Segoe UI", 7, "bold"), 
                  bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=40)
 
-    def _check_updates_sync(self):
-        """Check GitHub for new releases. Run in thread."""
-        try:
-            repo = "chandutalawar187-blip/Exam-Guardrial-Post-Hackathon"
-            url = f"https://api.github.com/repos/{repo}/releases/latest"
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.get(url)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    latest_tag = data.get("tag_name", "").lstrip('v')
-                    if latest_tag and latest_tag != __version__:
-                        # Find windows asset
-                        for asset in data.get("assets", []):
-                            if asset["name"] == "ExamGuardrailSetup.exe":
-                                download_url = asset["browser_download_url"]
-                                self._latest_update = {"version": latest_tag, "url": download_url}
-                                self.after(100, self._apply_update_ui)
-                                break
-        except Exception as e:
-            log.debug(f"Update check failed: {e}")
+    def _update_checker_loop(self):
+        """Cyclicly check GitHub for new releases. Run in thread."""
+        repo = "chandutalawar187-blip/Exam-Guardrial-Post-Hackathon"
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+        
+        while True:
+            try:
+                log.info("Checking for ecosystem updates...")
+                with httpx.Client(timeout=10.0) as client:
+                    resp = client.get(url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        latest_tag = data.get("tag_name", "").lstrip('v')
+                        if latest_tag and latest_tag != __version__:
+                            for asset in data.get("assets", []):
+                                if asset["name"] == "ExamGuardrailSetup.exe":
+                                    download_url = asset["browser_download_url"]
+                                    self._latest_update = {"version": latest_tag, "url": download_url}
+                                    self.after(100, self._apply_update_ui)
+                                    break
+            except Exception as e:
+                log.debug(f"Update check failed: {e}")
+            
+            # Check every 30 minutes
+            time.sleep(1800)
 
     def _apply_update_ui(self):
         if not self._latest_update: return
@@ -700,19 +706,28 @@ class GuardrailApp(tk.Tk):
         
         # 2. Update main app header/banner
         if not self._update_banner:
-            log.info(f"Showing update banner in main app: v{v}")
-            # Put it in the header for visibility
-            self._update_banner = tk.Frame(self, bg=C["accent"], height=30)
-            self._update_banner.grid(row=0, column=0, sticky="new") # Overlay on header
+            log.info(f"Applying update notification UI for v{v}")
+            # Overlay banner on header
+            self._update_banner = tk.Frame(self, bg=C["accent"], height=32)
+            self._update_banner.grid(row=0, column=0, sticky="new") 
             
-            tk.Label(self._update_banner, text=f"UPDATE v{v} READY", 
+            tk.Label(self._update_banner, text=f"NEW CRITICAL UPDATE v{v} IS AVAILABLE", 
                      font=("Segoe UI", 7, "bold"), bg=C["accent"], fg="white").pack(side="left", padx=20)
             
-            btn = tk.Button(self._update_banner, text="INSTALL", font=("Segoe UI", 6, "bold"),
-                            bg=C["surface"], fg=C["accent"], activebackground=C["bg"],
-                            relief="flat", bd=0, padx=8, pady=1, cursor="hand2",
+            btn = tk.Button(self._update_banner, text="INSTALL NOW", font=("Segoe UI", 6, "bold"),
+                            bg="#F5F3EF", fg=C["accent"], activebackground="#D1CDC7",
+                            relief="flat", bd=0, padx=12, pady=2, cursor="hand2",
                             command=lambda: self._on_update_click(v, url))
             btn.pack(side="right", padx=10, pady=4)
+
+        # 3. Proactive Notification (Popup) if first time seeing this version
+        if self._last_notified_version != v:
+            self._last_notified_version = v
+            # Use after to prevent blocking the thread or UI loop during notification
+            self.after(500, lambda: messagebox.showinfo("Update Available", 
+                f"A new authoritative version (v{v}) of ExamGuardrail is available.\n\n"
+                "It is highly recommended to install this update to ensure total environment integrity.\n"
+                "Click 'INSTALL NOW' in the top banner to proceed."))
 
     def _on_update_click(self, version, download_url):
         if messagebox.askyesno("ExamGuardrail Update", 
