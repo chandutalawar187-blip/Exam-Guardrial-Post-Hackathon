@@ -14,7 +14,7 @@ VSVersionInfo(
     flags=0x0,
     # The operating system for which this file was designed.
     # 0x4 - NT and windows
-    fileos=0x40004,
+    OS=0x40004,
     # The general type of file.
     # 0x1 - Application
     filetype=0x1,
