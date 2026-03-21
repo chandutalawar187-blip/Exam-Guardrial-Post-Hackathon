@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -670,25 +670,18 @@ class GuardrailApp(tk.Tk):
         btn.pack(side="right", padx=20, pady=8)
 
     def _on_update_click(self, version, download_url):
-        if messagebox.askyesno("Update Available", f"Would you like to update to v{version} now?\nThe app will restart automatically."):
+        if messagebox.askyesno("ExamGuardrail Update", 
+                               f"A new version (v{version}) is available.\n\n"
+                               "Would you like to download and install it now?\n"
+                               "The app will close and restart automatically."):
             self._start_update_flow(download_url)
 
     def _start_update_flow(self, download_url):
         self._is_updating = True
-        # Hide standard UI or show overlay
-        overlay = tk.Toplevel(self)
-        overlay.title("Updating...")
-        overlay.geometry("300x150")
-        overlay.configure(bg=C["surface"])
-        overlay.transient(self)
-        overlay.grab_set()
         
-        tk.Label(overlay, text="DOWNLOADING UPDATE", font=("Georgia", 10, "bold"), 
-                 bg=C["surface"], fg=C["text"]).pack(pady=(30, 10))
-        
-        progress_lbl = tk.Label(overlay, text="0%", font=("Segoe UI", 8), 
-                                bg=C["surface"], fg=C["text_dim"])
-        progress_lbl.pack()
+        # Show a quick confirmation that it's starting
+        messagebox.showinfo("Updating", "The update is downloading in the background. "
+                            "ExamGuardrail will restart shortly to apply the changes.")
 
         def do_download():
             try:
@@ -698,28 +691,27 @@ class GuardrailApp(tk.Tk):
                 temp_dir = tempfile.gettempdir()
                 dest = os.path.join(temp_dir, "ExamGuardrailSetup_Update.exe")
                 
-                with httpx.stream("GET", download_url, follow_redirects=True) as r:
-                    total = int(r.headers.get("Content-Length", 0))
-                    downloaded = 0
-                    with open(dest, "wb") as f:
-                        for chunk in r.iter_bytes():
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            if total > 0:
-                                pct = int(downloaded / total * 100)
-                                self.after(0, lambda p=pct: progress_lbl.config(text=f"{p}%"))
+                with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+                    resp = client.get(download_url)
+                    if resp.status_code == 200:
+                        with open(dest, "wb") as f:
+                            f.write(resp.content)
                 
-                # Launch installer
+                # Launch installer - use /SILENT instead of /VERYSILENT for a natural progress bar
+                # but no wizard questions. Or use no flags for full wizard if preferred.
+                # User wants "Natural", so /SILENT is a good middle ground (shows progress).
                 log.info(f"Launching update installer: {dest}")
-                # /VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS
-                subprocess.Popen([dest, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CLOSEAPPLICATIONS"], 
+                
+                # We use /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS for Inno Setup
+                # This shows a small progress window (native) but doesn't ask for path.
+                subprocess.Popen([dest, "/SILENT", "/SP-", "/SUPPRESSMSGBOXES", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"], 
                                   shell=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0)
                 
-                # Exit app
-                self.after(500, self._on_close)
+                # Exit app immediately to allow installer to work
+                self.after(200, self._on_close)
             except Exception as e:
+                log.error(f"Download failed: {e}")
                 self.after(0, lambda: messagebox.showerror("Update Error", f"Failed to download update: {e}"))
-                self.after(0, overlay.destroy)
 
         threading.Thread(target=do_download, daemon=True).start()
 
