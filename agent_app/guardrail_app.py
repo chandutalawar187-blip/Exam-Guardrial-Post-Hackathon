@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.8"
+__version__ = "1.4.9"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -249,7 +249,7 @@ class InstallWizard(tk.Toplevel):
 
         tk.Label(inner_hdr, text="EXAMGUARDRAIL", font=("Georgia", 24),
                  bg=C["surface"], fg=C["text"]).pack()
-        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [MAX-RELB]", font=("Segoe UI", 8),
+        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [BRANDED]", font=("Segoe UI", 8),
                  bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
         
         self._update_container = tk.Frame(hdr, bg=C["surface"])
@@ -517,11 +517,12 @@ class GuardrailApp(tk.Tk):
         try:
             if platform.system() == "Windows" and os.path.exists(ico_path):
                 self.iconbitmap(ico_path)
-            elif os.path.exists(png_path):
+            if os.path.exists(png_path):
+                # We always set iconphoto as well for taskbar consistency
                 self._icon_img = tk.PhotoImage(file=png_path)
                 self.iconphoto(True, self._icon_img)
         except Exception as e:
-            logging.warning(f"Failed to set icon: {e}")
+            log.warning(f"Failed to set icon: {e}")
 
     def _center(self):
         self.update_idletasks()
