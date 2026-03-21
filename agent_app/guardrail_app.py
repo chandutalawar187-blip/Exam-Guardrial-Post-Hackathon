@@ -753,15 +753,6 @@ class GuardrailApp(tk.Tk):
         except Exception as e:
             log.error(f"Failed to launch updater: {e}")
             messagebox.showerror("Update Error", f"Could not launch the update engine: {e}")
-                    subprocess.Popen([dest, "/SILENT"], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-                
-                # Give a small window for the installer process to spawn before killing the current one
-                self.after(500, self._on_close)
-            except Exception as e:
-                log.error(f"Download failed: {e}")
-                self.after(0, lambda: messagebox.showerror("Update Error", f"Failed to download update: {e}"))
-
-        threading.Thread(target=do_download, daemon=True).start()
 
     def _update_scanner_status(self, scanner_key, status, color=None):
         """Update a detection card. In stealth mode, we hide THREAT details."""

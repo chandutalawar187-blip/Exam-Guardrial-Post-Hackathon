@@ -13,8 +13,7 @@ echo Building ExamGuardrailAgent.exe...
 python -m PyInstaller ^
     --onefile ^
     --windowed ^
-    --name "ExamGuardrailAgent" ^
-    --icon "icon.ico" ^
+    --version-file "agent_version_info.txt" ^
     --add-data "..\exam_guardrail;exam_guardrail" ^
     --hidden-import psutil ^
     --hidden-import httpx ^
@@ -31,6 +30,7 @@ python -m PyInstaller ^
     --windowed ^
     --name "ExamGuardrailUpdater" ^
     --icon "icon.ico" ^
+    --version-file "updater_version_info.txt" ^
     --hidden-import httpx ^
     --hidden-import tkinter ^
     --distpath "%OUTDIR%" ^

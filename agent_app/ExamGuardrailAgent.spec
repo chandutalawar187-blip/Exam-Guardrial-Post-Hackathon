@@ -1,15 +1,11 @@
-import os
-import sys
+# -*- mode: python ; coding: utf-8 -*-
+
 
 a = Analysis(
     ['guardrail_app.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('icon.png', '.'), 
-        ('icon.ico', '.'), 
-        (os.path.join('..', 'exam_guardrail'), 'exam_guardrail')
-    ],
+    datas=[('..\\exam_guardrail', 'exam_guardrail')],
     hiddenimports=['psutil', 'httpx', 'pystray', 'PIL', 'tkinter'],
     hookspath=[],
     hooksconfig={},
@@ -39,5 +35,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version='agent_version_info.txt',
     icon=['icon.ico'],
 )
