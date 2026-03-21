@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.4"
+__version__ = "1.4.5"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -490,6 +490,14 @@ class GuardrailApp(tk.Tk):
         self._update_banner = None
         self._latest_update = None # {"version": ..., "url": ...}
         self._is_updating = False
+        
+        # Create AppMutex for Inno Setup to detect running instance
+        if platform.system() == "Windows":
+            try:
+                import ctypes
+                # Create mutex to allow installer to detect process
+                self._mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "ExamGuardrailAgentMutex")
+            except: pass
         
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
