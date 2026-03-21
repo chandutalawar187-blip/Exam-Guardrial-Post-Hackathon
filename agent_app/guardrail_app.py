@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -58,8 +58,8 @@ C = {
     "accent2":   "#1A1A1A", 
     "text":      "#1A1A1A", # Graphite
     "text_dim":  "#6B6661", # Muted Stone
-    "green":     "#1A1A1A", # Use charcoal for "Safe" status
-    "amber":     "#964B00", # Deep Brown
+    "green":     "#28a745", # Success Green
+    "amber":     "#ffc107", # Warning Yellow
     "red":       "#A52A2A", # Deep Muted Clay
     "white":     "#FFFFFF",
     "border":    "#D1CDC7", # Light Sand / Stone
@@ -813,8 +813,8 @@ class GuardrailApp(tk.Tk):
     def _on_status(self, status):
         def _upd():
             if status == "running":
-                self._dot.configure(fg=C["text"])
-                self._status_val.configure(text="MONITORING ACTIVE", fg=C["text"])
+                self._dot.configure(text="●", fg=C["green"])
+                self._status_val.configure(text="MONITORING ACTIVE", fg=C["green"])
                 self._status_lbl.configure(text="SECURE ENVIRONMENT ACTIVE", fg=C["text"])
                 # Activate all scanner cards
                 for key in self._scanner_cards:
@@ -830,6 +830,8 @@ class GuardrailApp(tk.Tk):
     def _on_heartbeat(self, ok):
         def _upd():
             if ok:
+                self._dot.configure(fg=C["green"])
+                self._status_val.configure(text="MONITORING ACTIVE", fg=C["green"])
                 self._heartbeat_lbl.configure(text="REMOTE LINK ACTIVE", fg=C["text_dim"])
                 # After a successful scan cycle, mark scanners as clear
                 for key in self._scanner_cards:
@@ -837,6 +839,8 @@ class GuardrailApp(tk.Tk):
                     if card["status"].cget("text") == "SCANNING...":
                         self._update_scanner_status(key, "CLEAR")
             else:
+                self._dot.configure(fg=C["amber"])
+                self._status_val.configure(text="CONNECTION WEAK", fg=C["amber"])
                 self._heartbeat_lbl.configure(text="CONNECTION INTERRUPTED", fg=C["amber"])
         self.after(0, _upd)
 
