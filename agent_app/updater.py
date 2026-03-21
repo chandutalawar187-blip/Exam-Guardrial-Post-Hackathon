@@ -9,6 +9,29 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import platform
 
+# ── PATH SETUP ──────────────────────────────────────────────────────────────
+_here = os.path.dirname(os.path.abspath(__file__))
+
+# Support for PyInstaller _MEIPASS
+if hasattr(sys, '_MEIPASS'):
+    _base_path = sys._MEIPASS
+else:
+    _base_path = _here
+
+# ── ICON HELPER ─────────────────────────────────────────────────────────────
+def set_window_icon(window):
+    """Set the window icon for any tk window or toplevel."""
+    ico_path = os.path.join(_base_path, "icon.ico")
+    png_path = os.path.join(_base_path, "icon.png")
+    try:
+        if platform.system() == "Windows" and os.path.exists(ico_path):
+            window.iconbitmap(ico_path)
+        if os.path.exists(png_path):
+            window._icon_img = tk.PhotoImage(file=png_path)
+            window.iconphoto(True, window._icon_img)
+    except:
+        pass
+
 # ── SHARED CONSTANTS (Sync with main app) ───────────────────────────────────
 C = {
     "bg":        "#F5F3EF",
@@ -26,6 +49,7 @@ class ExamGuardrailUpdater:
         self.root = root
         self.download_url = download_url
         self.target_version = target_version
+        set_window_icon(self.root)
         self.root.title("ExamGuardrail Update")
         self.root.geometry("500x400")
         self.root.configure(bg=C["bg"])
