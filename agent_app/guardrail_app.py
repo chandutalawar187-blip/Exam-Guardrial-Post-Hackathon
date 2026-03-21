@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.3.7"
+__version__ = "1.4.0"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -471,10 +471,18 @@ class GuardrailApp(tk.Tk):
         self._icon_img = None
         self._wiz_icon = None
         
+        # Update state
+        self._update_banner = None
+        self._is_updating = False
+        
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
         self._set_icon()
         self._center()
+        
+        # Start update check in background
+        threading.Thread(target=self._check_updates_sync, daemon=True).start()
+        
         # Start wizard after window shown
         self.after(200, self._launch_wizard)
 
@@ -622,10 +630,98 @@ class GuardrailApp(tk.Tk):
                                    font=("Segoe UI", 8, "bold"), bg=C["bg"], fg=C["red"],
                                    activebackground=C["bg"], activeforeground=C["red"],
                                    relief="flat", bd=0, padx=20, cursor="hand2", state="disabled")
-        self._stop_btn.pack(side="right", padx=40, pady=15)
+        self._stop_btn.pack(side="right", padx=40, pady=20)
         
         tk.Label(bot, text="VERIFIED SECURE ENVIRONMENT", font=("Segoe UI", 7, "bold"), 
                  bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=40)
+
+    def _check_updates_sync(self):
+        """Check GitHub for new releases. Run in thread."""
+        try:
+            repo = "chandutalawar187-blip/Exam-Guardrial-Post-Hackathon"
+            url = f"https://api.github.com/repos/{repo}/releases/latest"
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest_tag = data.get("tag_name", "").lstrip('v')
+                    if latest_tag and latest_tag != __version__:
+                        # Find windows asset
+                        for asset in data.get("assets", []):
+                            if asset["name"] == "ExamGuardrailSetup.exe":
+                                download_url = asset["browser_download_url"]
+                                self.after(100, lambda: self._show_update_notification(latest_tag, download_url))
+                                break
+        except Exception as e:
+            log.debug(f"Update check failed: {e}")
+
+    def _show_update_notification(self, version, download_url):
+        log.info(f"Update available: {version}")
+        self._update_banner = tk.Frame(self, bg=C["accent"], height=40)
+        self._update_banner.grid(row=3, column=0, sticky="ew")
+        
+        tk.Label(self._update_banner, text=f"NEW UPDATE AVAILABLE: v{version}", 
+                 font=("Segoe UI", 8, "bold"), bg=C["accent"], fg="white").pack(side="left", padx=20)
+        
+        btn = tk.Button(self._update_banner, text="UPDATE NOW", font=("Segoe UI", 7, "bold"),
+                        bg=C["surface"], fg=C["accent"], activebackground=C["bg"],
+                        relief="flat", bd=0, padx=10, pady=2, cursor="hand2",
+                        command=lambda: self._on_update_click(version, download_url))
+        btn.pack(side="right", padx=20, pady=8)
+
+    def _on_update_click(self, version, download_url):
+        if messagebox.askyesno("Update Available", f"Would you like to update to v{version} now?\nThe app will restart automatically."):
+            self._start_update_flow(download_url)
+
+    def _start_update_flow(self, download_url):
+        self._is_updating = True
+        # Hide standard UI or show overlay
+        overlay = tk.Toplevel(self)
+        overlay.title("Updating...")
+        overlay.geometry("300x150")
+        overlay.configure(bg=C["surface"])
+        overlay.transient(self)
+        overlay.grab_set()
+        
+        tk.Label(overlay, text="DOWNLOADING UPDATE", font=("Georgia", 10, "bold"), 
+                 bg=C["surface"], fg=C["text"]).pack(pady=(30, 10))
+        
+        progress_lbl = tk.Label(overlay, text="0%", font=("Segoe UI", 8), 
+                                bg=C["surface"], fg=C["text_dim"])
+        progress_lbl.pack()
+
+        def do_download():
+            try:
+                import tempfile
+                import subprocess
+                
+                temp_dir = tempfile.gettempdir()
+                dest = os.path.join(temp_dir, "ExamGuardrailSetup_Update.exe")
+                
+                with httpx.stream("GET", download_url, follow_redirects=True) as r:
+                    total = int(r.headers.get("Content-Length", 0))
+                    downloaded = 0
+                    with open(dest, "wb") as f:
+                        for chunk in r.iter_bytes():
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total > 0:
+                                pct = int(downloaded / total * 100)
+                                self.after(0, lambda p=pct: progress_lbl.config(text=f"{p}%"))
+                
+                # Launch installer
+                log.info(f"Launching update installer: {dest}")
+                # /VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS
+                subprocess.Popen([dest, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CLOSEAPPLICATIONS"], 
+                                  shell=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0)
+                
+                # Exit app
+                self.after(500, self._on_close)
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Update Error", f"Failed to download update: {e}"))
+                self.after(0, overlay.destroy)
+
+        threading.Thread(target=do_download, daemon=True).start()
 
     def _update_scanner_status(self, scanner_key, status, color=None):
         """Update a detection card. In stealth mode, we hide THREAT details."""

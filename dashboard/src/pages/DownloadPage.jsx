@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 // Direct download via our backend API — no GitHub redirect
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const RELEASE_TAG = 'v1.3.7';
+const RELEASE_TAG = 'v1.4.0';
 const DOWNLOADS = {
   windows: `${API_BASE}/api/downloads/windows`,
   macos: `${API_BASE}/api/downloads/macos`,
