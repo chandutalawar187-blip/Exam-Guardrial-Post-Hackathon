@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.9"
+__version__ = "1.5.0"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -64,6 +64,21 @@ C = {
     "white":     "#FFFFFF",
     "border":    "#D1CDC7", # Light Sand / Stone
 }
+
+# ── ICON HELPER ─────────────────────────────────────────────────────────────
+def set_window_icon(window):
+    """Set the window icon for any tk window or toplevel."""
+    ico_path = os.path.join(_here, "icon.ico")
+    png_path = os.path.join(_here, "icon.png")
+    try:
+        if platform.system() == "Windows" and os.path.exists(ico_path):
+            window.iconbitmap(ico_path)
+        if os.path.exists(png_path):
+            # PhotoImage keeps a reference internally or via instance attribute
+            window._icon_img = tk.PhotoImage(file=png_path)
+            window.iconphoto(True, window._icon_img)
+    except Exception as e:
+        log.warning(f"Failed to set icon for {window}: {e}")
 
 # ── AGENT LOGIC ─────────────────────────────────────────────────────────────
 class AgentCore:
@@ -249,7 +264,7 @@ class InstallWizard(tk.Toplevel):
 
         tk.Label(inner_hdr, text="EXAMGUARDRAIL", font=("Georgia", 24),
                  bg=C["surface"], fg=C["text"]).pack()
-        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [BRANDED]", font=("Segoe UI", 8),
+        tk.Label(inner_hdr, text="AUTHENTIC SECURITY AGENT [PRODUCTION]", font=("Segoe UI", 8),
                  bg=C["surface"], fg=C["text_dim"]).pack(pady=(2, 0))
         
         self._update_container = tk.Frame(hdr, bg=C["surface"])
@@ -501,7 +516,7 @@ class GuardrailApp(tk.Tk):
         
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
-        self._set_icon()
+        set_window_icon(self)
         self._center()
         
         # Start update check in background
@@ -509,20 +524,6 @@ class GuardrailApp(tk.Tk):
         
         # Start wizard after window shown
         self.after(200, self._launch_wizard)
-
-    def _set_icon(self):
-        """Set the window icon. Uses .ico for Windows title bar, .png as fallback."""
-        ico_path = os.path.join(_here, "icon.ico")
-        png_path = os.path.join(_here, "icon.png")
-        try:
-            if platform.system() == "Windows" and os.path.exists(ico_path):
-                self.iconbitmap(ico_path)
-            if os.path.exists(png_path):
-                # We always set iconphoto as well for taskbar consistency
-                self._icon_img = tk.PhotoImage(file=png_path)
-                self.iconphoto(True, self._icon_img)
-        except Exception as e:
-            log.warning(f"Failed to set icon: {e}")
 
     def _center(self):
         self.update_idletasks()
