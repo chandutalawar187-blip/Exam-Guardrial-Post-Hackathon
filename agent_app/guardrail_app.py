@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.4.3"
+__version__ = "1.4.4"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -724,18 +724,24 @@ class GuardrailApp(tk.Tk):
                         with open(dest, "wb") as f:
                             f.write(resp.content)
                 
-                # Launch installer - use /SILENT instead of /VERYSILENT for a natural progress bar
-                # but no wizard questions. Or use no flags for full wizard if preferred.
-                # User wants "Natural", so /SILENT is a good middle ground (shows progress).
+                # Launch installer - use os.startfile for maximum reliability on Windows (triggers UAC correctly)
+                # Note: os.startfile doesn't take arguments easily, but we can use a shortcut or ShellExecute
                 log.info(f"Launching update installer: {dest}")
                 
-                # We use /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS for Inno Setup
-                # This shows a small progress window (native) but doesn't ask for path.
-                subprocess.Popen([dest, "/SILENT", "/SP-", "/SUPPRESSMSGBOXES", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"], 
-                                  shell=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0)
+                try:
+                    import ctypes
+                    # Using ShellExecute to launch as admin if needed and pass flags
+                    # /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+                    # We use /VERYSILENT to minimize interaction but ensure it runs.
+                    params = "/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", dest, params, None, 1)
+                except Exception as e:
+                    log.error(f"ShellExecute failed: {e}")
+                    # Fallback to simple Popen if ShellExecute fails
+                    subprocess.Popen([dest, "/SILENT"], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
                 
-                # Exit app immediately to allow installer to work
-                self.after(200, self._on_close)
+                # Give a small window for the installer process to spawn before killing the current one
+                self.after(500, self._on_close)
             except Exception as e:
                 log.error(f"Download failed: {e}")
                 self.after(0, lambda: messagebox.showerror("Update Error", f"Failed to download update: {e}"))
