@@ -9,6 +9,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import platform
 
+__version__ = "1.6.5"
+
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,7 +52,7 @@ class ExamGuardrailUpdater:
         self.download_url = download_url
         self.target_version = target_version
         set_window_icon(self.root)
-        self.root.title("ExamGuardrail Update")
+        self.root.title(f"ExamGuardrail Update v{__version__}")
         self.root.geometry("500x400")
         self.root.configure(bg=C["bg"])
         self.root.resizable(False, False)
