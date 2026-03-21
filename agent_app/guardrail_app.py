@@ -14,7 +14,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.5.3"
+__version__ = "1.5.4"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -231,6 +231,7 @@ class InstallWizard(tk.Toplevel):
         self._update_btn = None
         
         self._center()
+        set_window_icon(self)
         self._session_var = tk.StringVar()
         self._url_var = tk.StringVar()
         self._api_var = tk.StringVar(value=DEFAULT_API_URL)
