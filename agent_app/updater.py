@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import platform
 
-__version__ = "1.6.5"
+__version__ = "1.6.6"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
