@@ -10,11 +10,11 @@ pip install pyinstaller
 
 echo.
 echo Building ExamGuardrailAgent.exe...
-set OUTDIR=%TEMP%\ExamAgentBuild
 python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "ExamGuardrailAgent" ^
+    --icon "icon.ico" ^
     --add-data "..\exam_guardrail;exam_guardrail" ^
     --hidden-import psutil ^
     --hidden-import httpx ^
@@ -23,6 +23,18 @@ python -m PyInstaller ^
     --hidden-import tkinter ^
     --distpath "%OUTDIR%" ^
     guardrail_app.py
+
+echo.
+echo Building ExamGuardrailUpdater.exe...
+python -m PyInstaller ^
+    --onefile ^
+    --windowed ^
+    --name "ExamGuardrailUpdater" ^
+    --icon "icon.ico" ^
+    --hidden-import httpx ^
+    --hidden-import tkinter ^
+    --distpath "%OUTDIR%" ^
+    updater.py
 
 echo.
 echo ============================================================

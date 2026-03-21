@@ -716,38 +716,43 @@ class GuardrailApp(tk.Tk):
 
     def _start_update_flow(self, download_url):
         self._is_updating = True
+        version = self._latest_update["version"]
         
-        # Show a quick confirmation that it's starting
-        messagebox.showinfo("Updating", "The update is downloading in the background. "
-                            "ExamGuardrail will restart shortly to apply the changes.")
+        # Determine path to the standalone updater
+        if getattr(sys, 'frozen', False):
+            # Running as bundled EXE
+            base_dir = os.path.dirname(sys.executable)
+            updater_exe = os.path.join(base_dir, "ExamGuardrailUpdater.exe")
+        else:
+            # Running from source
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            updater_exe = os.path.join(base_dir, "updater.py")
 
-        def do_download():
-            try:
-                import tempfile
-                import subprocess
-                
-                temp_dir = tempfile.gettempdir()
-                dest = os.path.join(temp_dir, "ExamGuardrailSetup_Update.exe")
-                
-                with httpx.Client(follow_redirects=True, timeout=30.0) as client:
-                    resp = client.get(download_url)
-                    if resp.status_code == 200:
-                        with open(dest, "wb") as f:
-                            f.write(resp.content)
-                
-                # Launch installer - use os.startfile for maximum reliability on Windows (triggers UAC correctly)
-                # Note: os.startfile doesn't take arguments easily, but we can use a shortcut or ShellExecute
-                log.info(f"Launching update installer: {dest}")
-                
-                try:
-                    import ctypes
-                    # Max reliability: No flags, no runas. Let the Windows shell handle it natively.
-                    # This ensures it installs to the correct user AppData folder.
-                    # The user will see a standard "Next, Next, Finish" wizard, which is 100% reliable.
-                    os.startfile(dest)
-                except Exception as e:
-                    log.error(f"ShellExecute failed: {e}")
-                    # Fallback to simple Popen if ShellExecute fails
+        log.info(f"Launching standalone updater: {updater_exe}")
+
+        try:
+            if updater_exe.endswith(".py"):
+                # Run with python
+                subprocess.Popen([sys.executable, updater_exe, download_url, version])
+            else:
+                # Run the EXE directly
+                if os.path.exists(updater_exe):
+                    os.startfile(updater_exe, "open")
+                    # Note: Arguments can't be passed easily with startfile for EXE sometimes
+                    # but our updater is designed to handle it if we use Popen or just ShellExecute
+                    subprocess.Popen([updater_exe, download_url, version])
+                else:
+                    messagebox.showerror("Updater Not Found", 
+                                       "The professional update engine was not found in the application directory. "
+                                       "Please download the latest version manually.")
+                    return
+
+            # Give a moment to launch then exit the main agent to allow file replacement
+            self.after(2000, lambda: sys.exit(0))
+            
+        except Exception as e:
+            log.error(f"Failed to launch updater: {e}")
+            messagebox.showerror("Update Error", f"Could not launch the update engine: {e}")
                     subprocess.Popen([dest, "/SILENT"], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
                 
                 # Give a small window for the installer process to spawn before killing the current one
