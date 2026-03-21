@@ -26,10 +26,11 @@ jobs:
           pip install pyinstaller
           pip install -r agent_app/requirements.txt
 
-      - name: Build EXE with PyInstaller
+      - name: Build EXEs with PyInstaller
         working-directory: agent_app
         run: |
           python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
+          python -m PyInstaller ExamGuardrailUpdater.spec --clean --noconfirm
 
       - name: Install Inno Setup
         run: |
@@ -64,10 +65,11 @@ jobs:
           # Install tkinter via brew (required on macOS)
           brew install python-tk@3.11 || true
 
-      - name: Build .app with PyInstaller
+      - name: Build .apps with PyInstaller
         working-directory: agent_app
         run: |
           python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
+          python -m PyInstaller ExamGuardrailUpdater.spec --clean --noconfirm
 
       - name: Create DMG
         working-directory: agent_app
@@ -110,8 +112,8 @@ jobs:
       - name: Build binary with PyInstaller
         working-directory: agent_app
         run: |
-          python -m PyInstaller --onefile --windowed --name "ExamGuardrailAgent" --icon "icon.ico" --version-file "agent_version_info.txt" --add-data "..\exam_guardrail;exam_guardrail" --hidden-import psutil --hidden-import httpx --hidden-import pystray --hidden-import PIL --hidden-import tkinter guardrail_app.py
-          python -m PyInstaller --onefile --windowed --name "ExamGuardrailUpdater" --icon "icon.ico" --version-file "updater_version_info.txt" --hidden-import httpx --hidden-import tkinter updater.py
+          python -m PyInstaller ExamGuardrailAgent.spec --clean --noconfirm
+          python -m PyInstaller ExamGuardrailUpdater.spec --clean --noconfirm
 
       - name: Create .deb package
         working-directory: agent_app
