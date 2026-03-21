@@ -5,7 +5,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('..\\exam_guardrail', 'exam_guardrail'),
+        ('../exam_guardrail', 'exam_guardrail'),
         ('icon.png', '.'),
         ('icon.ico', '.')
     ] if sys.platform == 'win32' else [('../exam_guardrail', 'exam_guardrail')],

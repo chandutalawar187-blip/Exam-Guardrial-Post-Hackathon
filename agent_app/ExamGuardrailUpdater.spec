@@ -9,7 +9,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('..\\exam_guardrail', 'exam_guardrail'),
+        ('../exam_guardrail', 'exam_guardrail'),
         ('icon.png', '.'),
         ('icon.ico', '.')
     ],
