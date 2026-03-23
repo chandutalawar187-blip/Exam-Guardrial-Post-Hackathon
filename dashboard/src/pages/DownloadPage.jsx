@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 // Direct download via our backend API — no GitHub redirect
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const RELEASE_TAG = 'v1.6.9';
+const RELEASE_TAG = 'v1.7.0';
 const DOWNLOADS = {
   windows: `${API_BASE}/api/downloads/windows`,
   macos: `${API_BASE}/api/downloads/macos`,
@@ -12,7 +12,7 @@ const DOWNLOADS = {
 };
 
 const FEATURES = [
-  { icon: '🔍', title: 'AI Agent Detection', desc: 'Scans for ChatGPT, Copilot, and 50+ AI tools in real-time.' },
+  { icon: '🔍', title: 'AI Agent Detection', desc: 'Scans for ChatGPT, Copilot, Perplexity, and 100+ AI tools including specialized Interview Software.' },
   { icon: '🛡️', title: 'Active Blocking', desc: 'Automatically terminates prohibited processes during exams.' },
   { icon: '📡', title: 'Live Monitoring', desc: 'Sends heartbeats and findings to your admin dashboard instantly.' },
   { icon: '🌐', title: 'Universal Compatibility', desc: 'Works with HackerRank, LeetCode, or any exam platform via link.' },

@@ -47,8 +47,21 @@ AI_AGENT_PROCESSES = {
     'claude':               'Claude desktop app (macOS/Linux)',
     'gemini.exe':           'Google Gemini desktop app',
     'gemini':               'Google Gemini desktop app (macOS/Linux)',
+    'perplexity.exe':       'Perplexity AI desktop',
+    'perplexity':           'Perplexity AI (macOS/Linux)',
+    'poe.exe':              'Poe AI desktop app',
+    'poe':                  'Poe AI (macOS/Linux)',
+    'jan.exe':              'Jan AI local engine',
+    'jan':                  'Jan AI (macOS/Linux)',
+    'ollama.exe':           'Ollama local AI runner',
+    'ollama':               'Ollama (macOS/Linux)',
+    'lm-studio.exe':        'LM Studio',
+    'lm-studio':            'LM Studio (macOS/Linux)',
+    'mscopilot.exe':        'Microsoft Copilot',
     'mscopilot_proxy.exe':  'Microsoft Copilot proxy',
     'mscopilot_proxy':      'Microsoft Copilot proxy (macOS/Linux)',
+    'proctoru.exe':         'ProctorU monitoring',
+    'mettl.exe':            'Mercer Mettl Proctoring',
 }
 
 # Electron-based apps that could be AI overlays when hidden
@@ -71,13 +84,16 @@ AI_API_DOMAINS = [
     'api.deepseek.com',
     'api.fireworks.ai',
     'api.x.ai',
+    'api.poe.com',
+    'llm.c.goog',
+    'copilot.microsoft.com',
 ]
 
 # Command-line patterns that indicate AI usage
 AI_CMD_PATTERNS = [
     'openai', 'anthropic', 'chatgpt', 'claude', 'gemini',
     'copilot', 'codewhisperer', 'gpt-4', 'gpt4', 'llama',
-    '--ai-', '--model', 'huggingface',
+    '--ai-', '--model', 'huggingface', 'ollama', 'vllm',
 ]
 
 
