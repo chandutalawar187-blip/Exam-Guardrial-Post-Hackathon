@@ -9,9 +9,9 @@
 
 ---
 
-## 🚀 What's New in v1.7.0 (The AI Shield Update)
+## 🚀 What's New in v1.8.0 (The AI Shield Update)
 
-ExamGuardrail has evolved. Version 1.7.0 introduces deep-tissue detection for the next generation of academic integrity threats:
+ExamGuardrail has evolved. Version 1.8.0 introduces deep-tissue detection for the next generation of academic integrity threats:
 
 - **Next-Gen AI Detection**: Native tracking for Perplexity, Poe AI, Jan AI, and Microsoft Copilot.
 - **Local Engine Blocking**: Detection of local LLM runners like Ollama and LM Studio.
