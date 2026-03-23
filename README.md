@@ -2,7 +2,7 @@
 
 **The most comprehensive, drop-in exam proctoring ecosystem for [CogniVigil](https://github.com/chandutalawar187-blip/Exam-guardrial-middleware) — detecting and neutralizing AI cheating tools, local LLMs, remote access apps, and specialized interview software in real-time.**
 
-[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](https://github.com/chandutalawar187-blip/Exam-Guardrial-Post-Hackathon)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/chandutalawar187-blip/Exam-Guardrial-Post-Hackathon)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Status](https://img.shields.io/badge/status-active-success.svg)](#)
