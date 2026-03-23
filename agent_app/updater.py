@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import platform
 
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -164,9 +164,9 @@ class ExamGuardrailUpdater:
 if __name__ == "__main__":
     # Expects [download_url, target_version]
     if len(sys.argv) < 3:
-        # For testing
-        url = "https://github.com/chandutalawar187-blip/Exam-Guardrial-Post-Hackathon/releases/download/v1.5.6/ExamGuardrailSetup.exe"
-        ver = "1.5.6"
+        # Require arguments in production
+        print("Usage: updater.exe <download_url> <target_version>")
+        sys.exit(1)
     else:
         url = sys.argv[1]
         ver = sys.argv[2]

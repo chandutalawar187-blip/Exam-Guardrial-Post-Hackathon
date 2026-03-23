@@ -15,7 +15,7 @@ import webbrowser
 import httpx
 import psutil
 
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 
 # ── PATH SETUP ──────────────────────────────────────────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -759,9 +759,7 @@ class GuardrailApp(tk.Tk):
             else:
                 # Run the EXE directly
                 if os.path.exists(updater_exe):
-                    os.startfile(updater_exe, "open")
-                    # Note: Arguments can't be passed easily with startfile for EXE sometimes
-                    # but our updater is designed to handle it if we use Popen or just ShellExecute
+                    # Use Popen to pass arguments correctly (download_url, version)
                     subprocess.Popen([updater_exe, download_url, version])
                 else:
                     messagebox.showerror("Updater Not Found", 
