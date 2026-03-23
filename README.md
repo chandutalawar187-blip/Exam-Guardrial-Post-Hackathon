@@ -37,7 +37,7 @@ ExamGuardrail operates at four distinct layers to ensure a level playing field f
 ## 🛠️ Installation & Setup
 
 ### 📥 Download the Agent
-Visit our official **[Download Center](https://exam-guardrial-post-hackathon.vercel.app/download)** for the latest v1.7.0 installers.
+Visit our official **[Download Center](https://exam-guardrial-post-hackathon.vercel.app/download)** for the latest v1.8.0 installers.
 *We provide interactive, step-by-step guidance for Windows, macOS, and Linux to help you bypass OS security filters (SmartScreen/Gatekeeper) seamlessly.*
 
 ### 🛠️ Developer Integration (FastAPI Middleware)
@@ -64,7 +64,7 @@ init_guardrail(app, config)
 
 ---
 
-## 🔍 Comprehensive Signature Registry (v1.7.0)
+## 🔍 Comprehensive Signature Registry (v1.8.0)
 
 ### 🤖 AI Desktop & Web Apps
 ChatGPT (Desktop/Web) · Claude · **Perplexity** · **Poe AI** · **Jan AI** · **Microsoft Copilot** · Gemini · Cluely · ParakeetAI · Ghost/LockedIn · Interview Coder · Windsurf · Cursor
