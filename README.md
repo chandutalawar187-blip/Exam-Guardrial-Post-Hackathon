@@ -13,11 +13,11 @@
 
 ExamGuardrail has evolved. Version 1.7.0 introduces deep-tissue detection for the next generation of academic integrity threats:
 
-- **🤖 Next-Gen AI Detection**: Native tracking for **Perplexity**, **Poe AI**, **Jan AI**, and **Microsoft Copilot**.
-- **🏠 Local Engine Blocking**: First-in-class detection of local LLM runners like **Ollama** and **LM Studio**.
-- **📡 Interview Integrity**: Integrated signatures for specialized proctoring tools like **ProctorU** and **Mercer Mettl**.
-- **📝 Interactive Guidance**: Professional, OS-specific setup guidance integrated directly into the web download center.
-- **🐞 Bug Fix (v1.7.1)**: Resolved a race condition causing duplicate updater instances.
+- **Next-Gen AI Detection**: Native tracking for Perplexity, Poe AI, Jan AI, and Microsoft Copilot.
+- **Local Engine Blocking**: Detection of local LLM runners like Ollama and LM Studio.
+- **Interview Integrity**: Integrated signatures for specialized proctoring tools like ProctorU and Mercer Mettl.
+- **Interactive Guidance**: Professional, OS-specific setup guidance integrated into the web download center.
+- **Bug Fix (v1.7.1)**: Resolved a race condition causing duplicate updater instances.
 
 ---
 
