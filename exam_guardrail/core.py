@@ -12,8 +12,10 @@
 # This mounts ALL proctoring routes, CORS, and the health endpoint.
 # The native agent scanner runs as ASGI middleware — just like CORSMiddleware.
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from exam_guardrail.config import GuardrailConfig, set_config
 from exam_guardrail.middleware import NativeAgentMiddleware
 from exam_guardrail.routes import auth, events, sessions, submissions, students, questions, exams, reports, native_agent, downloads
@@ -64,10 +66,24 @@ def init_guardrail(app: FastAPI, config: GuardrailConfig = None):
         app.include_router(exams.router)
         app.include_router(reports.router)
 
-    # Health endpoint
-    @app.get('/health')
-    async def guardrail_health():
-        return {'status': 'ok', 'middleware': 'exam_guardrail', 'version': '1.0.0'}
+    # Health / keep-alive endpoint
+    # Registered on both /health and /api/health because Vercel's rewrite
+    # forwards /api/health → FastAPI which sees the full path /api/health.
+    async def _health_handler():
+        try:
+            from supabase import create_client
+            url = os.environ.get('SUPABASE_URL')
+            key = os.environ.get('SUPABASE_KEY')
+            if not url or not key:
+                raise ValueError('Supabase credentials not configured')
+            client = create_client(url, key)
+            client.table('exam_sessions').select('id').limit(1).execute()
+            return JSONResponse({'ok': True, 'message': 'Database awake'})
+        except Exception as e:
+            return JSONResponse({'ok': False, 'error': str(e)}, status_code=503)
+
+    app.add_api_route('/health', _health_handler, methods=['GET'])
+    app.add_api_route('/api/health', _health_handler, methods=['GET'])
 
     # Native agent middleware — runs background scanner like CORSMiddleware
     app.add_middleware(
