@@ -82,8 +82,8 @@ def init_guardrail(app: FastAPI, config: GuardrailConfig = None):
         except Exception as e:
             return JSONResponse({'ok': False, 'error': str(e)}, status_code=503)
 
-    app.add_api_route('/health', _health_handler, methods=['GET'])
-    app.add_api_route('/api/health', _health_handler, methods=['GET'])
+    app.add_api_route('/health', _health_handler, methods=['GET', 'HEAD'])
+    app.add_api_route('/api/health', _health_handler, methods=['GET', 'HEAD'])
 
     # Native agent middleware — runs background scanner like CORSMiddleware
     app.add_middleware(

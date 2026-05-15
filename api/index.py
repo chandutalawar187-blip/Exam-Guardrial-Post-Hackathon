@@ -35,7 +35,7 @@ config = GuardrailConfig(native_agent_enabled=False)
 init_guardrail(app, config)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """
     Lightweight keep-alive endpoint.
